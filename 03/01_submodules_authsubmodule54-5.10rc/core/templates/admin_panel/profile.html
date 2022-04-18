@@ -1,0 +1,248 @@
+{% extends 'admin_panel/base.html' %}
+
+{% block content %}
+    <div class="dt-page__header">
+        <h1 class="dt-page__title">Profile</h1>
+    </div>
+
+    <div class="row">
+        <div class="col-xl-4 col-sm-6">
+            <div class="dt-card">
+                <div class="dt-card__body">
+                    <div>
+                        User:
+                        <strong>{{ g.actor.uinfo['first_name'] }} {{ g.actor.uinfo['last_name'] }}</strong><br>
+                        UUID: <strong>{{ g.actor.uuid }}</strong>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-xl-6">
+            <div class="dt-card">
+
+                <div class="dt-card__header">
+                    <div class="dt-card__heading">
+                        <h3 class="dt-card__title">Information</h3>
+                    </div>
+                </div>
+                <div class="dt-card__body">
+                    <form>
+                        <div class="row">
+                            <div class="form-group col-lg-6">
+                                <label for="edit-actor-form-first-name">First name</label>
+                                <input type="text" class="form-control" id="edit-actor-form-first-name"
+                                       name="first_name" value="{{ g.actor.uinfo['first_name'] }}">
+                            </div>
+                            <div class="form-group col-lg-6">
+                                <label for="edit-actor-form-last-name">Last name</label>
+                                <input type="text" class="form-control" id="edit-actor-form-last-name"
+                                       name="last_name" value="{{ g.actor.uinfo['last_name'] }}">
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="form-group col-lg-6">
+                                <label for="edit-actor-form-e-mail">E-mail</label>
+                                <input type="e-mail" class="form-control" id="edit-actor-form-e-mail"
+                                       name="email" value="{{ g.actor.uinfo['email'] }}" disabled>
+                            </div>
+                            <div class="form-group col-lg-6">
+                                <label for="edit-actor-form-birthday">Birthday</label>
+                                <input type="date" class="form-control" id="edit-actor-form-birthday"
+                                       name="birthday">
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="form-group col-lg-6">
+                                <label for="edit-actor-form-groups">Groups</label>
+                                <select class="form-control" id="edit-actor-form-groups" name="groups"
+                                        multiple
+                                        data-live-search="true" disabled>
+                                    {% for group in g.actor.get_groups() %}
+                                        <option selected>{{ group['uinfo']['group_name'] }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="form-group col-lg-6">
+                                <label for="edit-actor-form-password">New password</label>
+                                <input type="password" class="form-control" id="edit-actor-form-password"
+                                       name="password">
+                            </div>
+                        </div>
+                    </form>
+                    <button id="update" onclick="update_actor()" class="btn btn-primary">Update profile</button>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-6">
+            <div class="dt-card">
+                <div class="dt-card__header">
+                    <div class="dt-card__heading">
+                        <h3 class="dt-card__title">Your permissions</h3>
+                    </div>
+                </div>
+                <div class="dt-card__body">
+                    <div class="table-responsive">
+                        <table class="actor-perms display">
+                            <thead>
+                                <tr>
+                                    <th>Description</th>
+                                    <th>Type</th>
+                                    <th>Value</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                            {% if g.actor.is_root %}
+                                <tr>
+                                    <td colspan="3"  class="dataTables_empty">You are root all permissions are available</td>
+                                    <td style="display: none;"></td>
+                                    <td style="display: none;"></td>
+                                </tr>
+                            {% elif g.actor.is_admin %}
+                                <tr>
+                                    <td colspan="3"  class="dataTables_empty">You are admin all permissions are available</td>
+                                    <td style="display: none;"></td>
+                                    <td style="display: none;"></td>
+                                </tr>
+                            {% elif g.actor.is_banned %}
+                                <tr>
+                                    <td colspan="3" class="dataTables_empty">You are banned all permissions are denied</td>
+                                    <td style="display: none;"></td>
+                                    <td style="display: none;"></td>
+                                </tr>
+                            {% else %}
+                                {% set priority_perms = [] %}
+                                {% for perm in perms['actor'] %}
+                                    <tr>
+                                        <td>
+                                            <div data-toggle="tooltip" data-placement="top" data-original-title="{{ perm.description }}">{{ perm.title }}</div>
+                                        </td>
+                                        <td>
+                                            <div>
+                                                {% if perm.perm_type == 'simple' %}
+                                                    <span class="badge badge-dark">simple</span>
+                                                {% elif perm.perm_type == 'check' %}
+                                                    <span class="badge badge-warning">check</span>
+                                                {% endif %}
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div>
+                                                {% if perm.value %}
+                                                    <span class="badge badge-success">ON</span>
+                                                {% else %}
+                                                    <span class="badge badge-danger">OFF</span>
+                                                {% endif %}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                                {% for perm in perms['groups'] %}
+                                    {% if perm.permaction_uuid not in perms['actor']|map(attribute='permaction_uuid') %}
+                                        {% if perm.permaction_uuid not in priority_perms %}
+                                            <tr>
+                                                <td>
+                                                    <div data-toggle="tooltip" data-placement="top" data-original-title="{{ perm.description }}">
+                                                        {{ perm.title }}
+                                                        <span class="badge badge-pill badge-danger mb-1 ml-1">{{ actor_groups[perm.actor_uuid]['uinfo']['group_name'] }}</span>
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <div>
+                                                        {% if perm.perm_type == 'simple' %}
+                                                            <span class="badge badge-dark">simple</span>
+                                                        {% elif perm.perm_type == 'check' %}
+                                                            <span class="badge badge-warning">check</span>
+                                                        {% endif %}
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <div>
+                                                        {% if perm.value %}
+                                                            <span class="badge badge-success">ON</span>
+                                                        {% else %}
+                                                            <span class="badge badge-danger">OFF</span>
+                                                        {% endif %}
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                            {% do priority_perms.append(perm.permaction_uuid) %}
+                                        {% endif %}
+                                    {% endif %}
+                                {% endfor %}
+                                {% for perm in perms['default'] %}
+                                    <tr>
+                                        <td>
+                                            <div data-toggle="tooltip" data-placement="top" data-original-title="{{ perm.description }}">
+                                                {{ perm.title }}
+                                                <span class="badge badge-pill badge-light mb-1 ml-1">Service</span>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div>
+                                                {% if perm.perm_type == 'simple' %}
+                                                    <span class="badge badge-dark">simple</span>
+                                                {% elif perm.perm_type == 'check' %}
+                                                    <span class="badge badge-warning">check</span>
+                                                {% endif %}
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div>
+                                                {% if perm.value %}
+                                                    <span class="badge badge-success">ON</span>
+                                                {% else %}
+                                                    <span class="badge badge-danger">OFF</span>
+                                                {% endif %}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+{% endblock %}
+
+{% block scripts %}
+
+    {{ super() }}
+
+    <script>
+        $(document).ready(function () {
+            $('.actor-perms').DataTable({
+                "aaSorting": [],
+                "searching": false,
+                "paging": false,
+                "info": false
+            });
+            $("#edit-actor-form-groups").selectpicker();
+        })
+
+        function update_actor() {
+            let first_name = $('input[name="first_name"]').val()
+            let last_name = $('input[name="last_name"]').val()
+            let password = $('input[name="password"]').val()
+            data = {
+                'first_name': first_name, 'last_name': last_name, 'password': password
+            }
+            fetch('{{ url_for('auth_submodule.admin_profile') }}', {
+                method: "PUT",
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            }).then(response => {
+                if (response.ok) {
+                    document.location.reload()
+                }
+            })
+        }
+    </script>
+
+{% endblock %}

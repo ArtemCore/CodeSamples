@@ -1,0 +1,57 @@
+<script>
+    function AuthClassicSignUp(first_name, last_name, email, password, password_confirmation, need_sign_in) {
+        let data = {
+            "uinfo": {
+                "first_name": first_name || " ",
+                "last_name": last_name || " ",
+            },
+            "email": email,
+            "password": password,
+            "password_confirmation": password_confirmation,
+            "actor_type": "classic_user"
+        };
+
+        fetch(
+            "{{ url_for('auth_submodule.reg') }}",
+            {
+                method: "post",
+                headers: {
+                    "Accept": "application/json",
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => {
+                if (response.ok) {
+                    response.json().then((response) => {
+                        afterSignUp(response).then(() => {
+                            if (need_sign_in) {
+                                AuthClassicSignIn(email, password);
+                            }
+                            else {
+                                handleSignUpSuccess(response);
+                            }
+                        });
+                    })
+                } else {
+                    response.json().then((json) => {
+                        handleSignUpError(json);
+                    })
+                }
+            })
+    }
+
+    function afterSignUp(response) {
+        return new Promise(((resolve, reject) => {
+            resolve()
+        }))
+    }
+
+    function handleSignUpSuccess(response) {
+        alert(response.message);
+    }
+
+    function handleSignUpError(json) {
+        alert(json.error_message || 'Something went wrong');
+    }
+</script>

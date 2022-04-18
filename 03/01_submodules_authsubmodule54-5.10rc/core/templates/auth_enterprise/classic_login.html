@@ -1,0 +1,40 @@
+<script>
+    function AuthClassicSignIn(email, password){
+        let data = {
+            "email": email,
+            "password": password,
+            "actor_type": "classic_user"
+        };
+
+        fetch(
+            "{{ url_for('auth_submodule.auth') }}",
+            {
+                method: "post",
+                headers: {
+                    "Accept": "application/json",
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => {
+                if (response.ok) {
+                    response.json().then((response) => {
+                        document.cookie = "{{ config.get('SERVICE_NAME') | title }}=" + response["session_token"] + "; path=/";
+                        afterSaveSession();
+                    })
+                } else {
+                    response.json().then((json) => {
+                        handleSignInError(json)
+                    })
+                }
+            })
+    }
+
+    function afterSaveSession() {
+        window.location.replace('/')
+    }
+
+    function handleSignInError(json) {
+        alert(json.error_message || 'Something went wrong');
+    }
+</script>

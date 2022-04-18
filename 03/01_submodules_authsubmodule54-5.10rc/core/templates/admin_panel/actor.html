@@ -1,0 +1,552 @@
+{% extends 'admin_panel/base.html' %}
+
+{% block content %}
+
+    <div class="dt-page__header">
+        <h1 class="dt-page__title">Actor</h1>
+    </div>
+
+    <div class="dt-card">
+
+        <div class="dt-card__body">
+
+            <div class="col-lg-12 mb-4 mt-4">
+                <div class="form-group">
+                    <b>UUID: </b>{{ actor.uuid }}
+                </div>
+                <form id="actor-form">
+
+                    {% if actor.actor_type in ['classic_user', 'user'] %}
+
+                        <div class="row">
+                            <div class="form-group col-lg-6">
+                                <label for="edit-actor-form-first-name">First name</label>
+                                <input type="text" class="form-control" id="edit-actor-form-first-name"
+                                       name="first_name" value="{{ actor.uinfo['first_name'] }}">
+                            </div>
+                            <div class="form-group col-lg-6">
+                                <label for="edit-actor-form-last-name">Last name</label>
+                                <input type="text" class="form-control" id="edit-actor-form-last-name"
+                                       name="last_name" value="{{ actor.uinfo['last_name'] }}">
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="form-group col-lg-6">
+                                <label for="edit-actor-form-e-mail">E-mail</label>
+                                <input type="e-mail" class="form-control" id="edit-actor-form-e-mail"
+                                       name="email" value="{{ actor.uinfo['email'] }}">
+                            </div>
+                            <div class="form-group col-lg-6">
+                                <label for="edit-actor-form-birthday">Birthday</label>
+                                <input type="date" class="form-control" id="edit-actor-form-birthday"
+                                       name="birthday">
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="form-group col-lg-6">
+                                <label for="edit-actor-form-groups">Groups</label>
+                                <select class="form-control" id="edit-actor-form-groups" name="groups"
+                                        multiple
+                                        data-live-search="true">
+                                    {% for group in groups %}
+                                        {% if group['uuid'] in actor_groups %}
+                                            <option value="{{ group['uuid'] }}"
+                                                    selected>{{ group['uinfo']['group_name'] }}</option>
+                                        {% else %}
+                                            <option value="{{ group['uuid'] }}">{{ group['uinfo']['group_name'] }}</option>
+                                        {% endif %}
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="form-group col-lg-6">
+                                <label for="edit-actor-form-password">New password</label>
+                                <input type="password" class="form-control" id="edit-actor-form-password"
+                                       name="password">
+                            </div>
+                        </div>
+
+                    {% elif actor.actor_type == 'group' %}
+
+                        <div class="row">
+                            <div class="form-group col-lg-6">
+                                <label for="edit-actor-form-group-name">Group name</label>
+                                <input type="text" class="form-control" id="edit-actor-form-group-name"
+                                       name="group_name" value="{{ actor.uinfo['group_name'] }}">
+                            </div>
+                            <div class="form-group col-lg-6">
+                                <label for="edit-actor-form-group-weight">Group weight</label>
+                                <input type="number" class="form-control" id="edit-actor-form-group-weight"
+                                       name="weight" value="{{ actor.uinfo['weight'] }}">
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="form-group col-lg-12">
+                                <label for="edit-actor-form-group-description">Description</label>
+                                <textarea class="form-control" rows="6" id="edit-actor-form-group-description"
+                                          name="group_description"></textarea>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="form-group col-lg-12">
+                                <label for="edit-actor-form-users">Users</label>
+                                <select class="form-control" id="edit-actor-form-users" name="users"
+                                        multiple
+                                        data-live-search="true">
+                                    {% for user in actors %}
+                                        {% if user.actor_type in ['classic_user', 'user'] %}
+                                            {% if actor.uuid in user.uinfo['groups'] %}
+                                                <option value="{{ user.uuid }}"
+                                                        selected>{{ user.uinfo['first_name'] }} {{ user.uinfo['last_name'] }}</option>
+                                            {% else %}
+                                                <option value="{{ user.uuid }}">{{ user.uinfo['first_name'] }} {{ user.uinfo['last_name'] }}</option>
+                                            {% endif %}
+                                        {% endif %}
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+
+                    {% endif %}
+
+                </form>
+                <button id="update" onclick="update_actor()" class="btn btn-primary">Update actor</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="dt-card">
+        <div class="dt-card__body">
+        {% if actor.is_root %}
+            <div class="text-center p-10">
+                <div class="text-info mb-5"><span><svg viewBox="64 64 896 896" focusable="false" data-icon="exclamation-circle" width="5em" height="5em" fill="currentColor" aria-hidden="true"><path d="M512 64C264.6 64 64 264.6 64 512s200.6 448 448 448 448-200.6 448-448S759.4 64 512 64zm-32 232c0-4.4 3.6-8 8-8h48c4.4 0 8 3.6 8 8v272c0 4.4-3.6 8-8 8h-48c-4.4 0-8-3.6-8-8V296zm32 440a48.01 48.01 0 010-96 48.01 48.01 0 010 96z"></path></svg></span></div>
+                <h2 class="card-title">This actor is ROOT</h2>
+                <p class="card-text">This is a ROOT actor, all permissions are available</p>
+            </div>
+        {% elif actor.is_admin %}
+            <div class="text-center p-10">
+                <div class="text-warning mb-5"><span><svg viewBox="64 64 896 896" focusable="false" data-icon="warning" width="5em" height="5em" fill="currentColor" aria-hidden="true"><path d="M955.7 856l-416-720c-6.2-10.7-16.9-16-27.7-16s-21.6 5.3-27.7 16l-416 720C56 877.4 71.4 904 96 904h832c24.6 0 40-26.6 27.7-48zM480 416c0-4.4 3.6-8 8-8h48c4.4 0 8 3.6 8 8v184c0 4.4-3.6 8-8 8h-48c-4.4 0-8-3.6-8-8V416zm32 352a48.01 48.01 0 010-96 48.01 48.01 0 010 96z"></path></svg></span></div>
+                <h2 class="card-title">This actor is ADMIN</h2>
+                <p class="card-text">This actor belongs to the ADMIN group, all permissions are available</p>
+            </div>
+        {% elif actor.is_banned %}
+            <div class="text-center p-10">
+                <div class="text-warning mb-5"><span><svg viewBox="64 64 896 896" focusable="false" data-icon="warning" width="5em" height="5em" fill="currentColor" aria-hidden="true"><path d="M955.7 856l-416-720c-6.2-10.7-16.9-16-27.7-16s-21.6 5.3-27.7 16l-416 720C56 877.4 71.4 904 96 904h832c24.6 0 40-26.6 27.7-48zM480 416c0-4.4 3.6-8 8-8h48c4.4 0 8 3.6 8 8v184c0 4.4-3.6 8-8 8h-48c-4.4 0-8-3.6-8-8V416zm32 352a48.01 48.01 0 010-96 48.01 48.01 0 010 96z"></path></svg></span></div>
+                <h2 class="card-title">This actor is banned</h2>
+                <p class="card-text">This actor is banned, it is impossible to assign permissions to him</p>
+            </div>
+        {% else %}
+            <div class="row col-lg-12">
+                <div class="actor-table-wrapper table-responsive">
+                    <h2>Actor perms</h2>
+                    <table id="actor-perms" class="display">
+                        <thead>
+                        <tr>
+                            <th></th>
+                            <th>Title</th>
+                            <th>Attributes/Unions</th>
+                            <th>Type</th>
+                            <th>Value</th>
+                            <th>Action</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                            {% for perm in perms['actor'] %}
+                                <tr data-uuid="{{ perm.permaction_uuid }}"
+                                    data-value="{{ perm.value }}"
+                                    data-description="{{ perm.description }}"
+                                    data-params="{{ perm.params|tojson|forceescape }}"
+                                    data-actor="{{ perm.actor_uuid }}"
+                                    data-type="{{ perm.perm_type }}"
+                                {% if 'weight' in perm %}{{ perm.weight }}{% endif %}>
+                                    <td class="dt-control"></td>
+                                    <td>
+                                        <div>{{ perm.title }}</div>
+                                        <div style="color: #8c8c8c">{{ perm.permaction_uuid }}</div>
+                                    </td>
+                                    <td>
+                                        {% for union in perm.unions %}
+                                            <div>
+                                                <span class="badge badge-light">{{ union }}</span>
+                                            </div>
+                                        {% endfor %}
+                                    </td>
+                                    <td>
+                                        {% if perm.perm_type == 'simple' %}
+                                            <span class="badge badge-dark">simple</span>
+                                        {% elif perm.perm_type == 'check' %}
+                                            <span class="badge badge-warning">check</span>
+                                        {% endif %}
+                                    </td>
+                                    <td></td>
+                                    <td></td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% if not actor.actor_type == 'group' %}
+                <div class="actor-table-wrapper table-responsive">
+                    <h2>Group perms</h2>
+                    <table id="group-perms" class="display">
+                        <thead>
+                        <tr>
+                            <th></th>
+                            <th>Title</th>
+                            <th>Attributes/Unions</th>
+                            <th>Type</th>
+                            <th>Value</th>
+                            <th>Action</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                            {% set priority_perms = [] %}
+                            {% for perm in perms['groups'] %}
+                                {% if perm.permaction_uuid not in priority_perms %}
+                                    <tr data-uuid="{{ perm.permaction_uuid }}"
+                                        data-value="{{ perm.value }}"
+                                        data-description="{{ perm.description }}"
+                                        data-params="{{ perm.params|tojson|forceescape }}"
+                                        data-actor="{{ perm.actor_uuid }}"
+                                        data-type="{{ perm.perm_type }}">
+                                        <td class="dt-control"></td>
+                                        <td>
+                                            <div class="align-items-center">{{ perm.title }}
+                                                <a href="{{ url_for('auth_submodule.admin_actor', uuid=perm.actor_uuid) }}"
+                                                   class="badge badge-pill badge-danger mb-1 ml-1">{{ actor_groups[perm.actor_uuid]['uinfo']['group_name'] }}</a>
+                                            </div>
+                                            <div style="color: #8c8c8c">{{ perm.permaction_uuid }}</div>
+                                        </td>
+                                        <td>
+                                            {% for union in perm.unions %}
+                                                <div>
+                                                    <span class="badge badge-light mb-1">{{ union }}</span>
+                                                </div>
+                                            {% endfor %}
+                                        </td>
+                                        <td>
+                                            <div>
+                                                {% if perm.perm_type == 'simple' %}
+                                                    <span class="badge badge-dark">simple</span>
+                                                {% elif perm.perm_type == 'check' %}
+                                                    <span class="badge badge-warning">check</span>
+                                                {% endif %}
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div>
+                                                {% if perm.value %}
+                                                    <span class="badge badge-success">ON</span>
+                                                {% else %}
+                                                    <span class="badge badge-danger">OFF</span>
+                                                {% endif %}
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div>
+                                                <button type="button" class="btn btn-outline-primary btn-sm" style="padding: 0.5rem"
+                                                        {% if perm.permaction_uuid in perms['actor']|map(attribute='permaction_uuid') %}disabled                                                        {% endif %}
+                                                        onclick="set_perm($(this))">Override</button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% do priority_perms.append(perm.permaction_uuid) %}
+                                {% endif %}
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% endif %}
+                <div class="actor-table-wrapper table-responsive">
+                    <h2>Default perms</h2>
+                    <table id="default-perms" class="display">
+                        <thead>
+                        <tr>
+                            <th></th>
+                            <th>Title</th>
+                            <th>Attributes/Unions</th>
+                            <th>Type</th>
+                            <th>Value</th>
+                            <th>Action</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                            {% for perm in perms['default'] %}
+                                <tr data-uuid="{{ perm.permaction_uuid }}"
+                                    data-value="{{ perm.value }}"
+                                    data-description="{{ perm.description }}"
+                                    data-params="{{ perm.params|tojson|forceescape }}"
+                                    data-type="{{ perm.perm_type }}">
+                                    <td class="dt-control"></td>
+                                    <td>
+                                        <div>{{ perm.title }}</div>
+                                        <div style="color: #8c8c8c">{{ perm.permaction_uuid }}</div>
+                                    </td>
+                                    <td>
+                                        {% for union in perm.unions %}
+                                            <div>
+                                                <span class="badge badge-light mb-1">{{ union }}</span>
+                                            </div>
+                                        {% endfor %}
+                                    </td>
+                                    <td>
+                                        <div>
+                                            {% if perm.perm_type == 'simple' %}
+                                                <span class="badge badge-dark">simple</span>
+                                            {% elif perm.perm_type == 'check' %}
+                                                <span class="badge badge-warning">check</span>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div>
+                                            {% if perm.value %}
+                                                <span class="badge badge-success">ON</span>
+                                            {% else %}
+                                                <span class="badge badge-danger">OFF</span>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div>
+                                            <button type="button" class="btn btn-outline-primary btn-sm" style="padding: 0.5rem"
+                                                    {% if perm.permaction_uuid in perms['actor']|map(attribute='permaction_uuid')
+                                                     or perm.permaction_uuid in perms['groups']|map(attribute='permaction_uuid') %}
+                                                    disabled
+                                                    {% endif %} onclick="set_perm($(this))">
+                                                Override
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% endif %}
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+
+    {{ super() }}
+
+    <script>
+        const actor_perms_table = $('#actor-perms')
+        const group_perms_table = $('#group-perms')
+        const default_perms_table = $('#default-perms')
+
+        function set_perm(el) {
+            let row = el.closest("tr")
+            let row_clone = row.clone()
+            console.log(row.data('params'))
+            console.log(typeof (row.data('params')))
+            row_clone.find('td:nth-child(2) a').remove()
+            row_clone.removeClass('dt-hasChild shown')
+            $.ajax({
+                type: "POST",
+                url: "{{ url_for('auth_submodule.admin_permissions') }}",
+                data: JSON.stringify(
+                    {
+                        "actor_uuid": "{{ actor.uuid }}",
+                        "perm_uuid": row.data().uuid,
+                        "value": row.data().value,
+                        "params": row.data().params
+                    }),
+                contentType: "application/json; charset=utf-8",
+                dataType: "json",
+                success: function (data, textStatus, jqXHR) {
+                    el.prop('disabled', true)
+                    actor_perms_table.DataTable().row.add(row_clone).draw()
+                }
+            })
+        }
+
+        function update_perm() {
+            let row = $(this).closest('tr')
+
+            if (typeof row.data().params === 'object') {
+                row.data().params = JSON.stringify(row.data().params)
+            }
+            $.ajax({
+                type: "PUT",
+                url: "{{ url_for('auth_submodule.admin_permissions') }}",
+                data: JSON.stringify(
+                    {
+                        "actor_uuid": "{{ actor.uuid }}",
+                        "perm_uuid": row.data().uuid,
+                        "value": row.data().value,
+                        "params": JSON.parse(row.data().params)
+                    }),
+                contentType: "application/json; charset=utf-8",
+                dataType: "json",
+            })
+        }
+
+        function remove_perm(el) {
+            let row = el.closest("tr")
+            let source_group_row = group_perms_table.find("tr[data-uuid=" + row.data().uuid + "] td:last-child button")
+            let source_default_row = default_perms_table.find("tr[data-uuid=" + row.data().uuid + "] td:last-child button")
+            $.ajax({
+                type: "DELETE",
+                url: "{{ url_for('auth_submodule.admin_permissions') }}",
+                data: JSON.stringify({"actor_uuid": "{{ actor.uuid }}", "perm_uuid": row.data().uuid}),
+                contentType: "application/json; charset=utf-8",
+                dataType: "json",
+                success: function (data, textStatus, jqXHR) {
+                    if (source_group_row.length) {
+                        source_group_row.prop('disabled', false)
+                    } else {
+                        source_default_row.prop('disabled', false)
+                    }
+                    actor_perms_table.DataTable().row(row).remove().draw()
+                }
+            })
+        }
+
+        function update_actor() {
+            if (['classic_user', 'user'].includes('{{ actor.actor_type }}')) {
+                let first_name = $('input[name="first_name"]').val()
+                let last_name = $('input[name="last_name"]').val()
+                let email = $('input[name="email"]').val()
+                let password = $('input[name="password"]').val()
+                let groups = $('select[name="groups"]').val()
+                data = {
+                    'first_name': first_name, 'last_name': last_name,
+                    'email': email, 'password': password, 'groups': groups
+                }
+            } else {
+                let group_name = $('input[name="group_name"]').val()
+                let weight = $('input[name="weight"]').val()
+                let description = $('textarea[name="description"]').val()
+                let users = $('select[name="users"]').val()
+                data = {
+                    'group_name': group_name, 'weight': weight,
+                    'description': description, 'users': users
+                }
+            }
+            fetch('{{ url_for('auth_submodule.admin_actor', uuid=actor.uuid) }}', {
+                method: "PUT",
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            }).then(response => {
+                if (response.ok) {
+                    document.location.reload()
+                }
+            })
+        }
+
+        function format(data, status) {
+            let params =
+                `<tr>
+                    <td>Params:</td>
+                    <td><textarea ${status}>${data.params}</textarea></td>
+                </tr>`
+            if (data.type === 'simple') {
+                params = ''
+            }
+            let child_row =
+                `<table style="padding-left:50px;">
+                    <tr>
+                        <td>Description:</td>
+                        <td>${data.description}</td>
+                    </tr>
+                    ${params}
+                </table>`
+            return child_row
+        }
+
+        $(document).ready(function () {
+            actor_perms_table.DataTable({
+                "createdRow": function (row, data, index) {
+                    let toggler = $(row).find('td:nth-last-child(2) input').bootstrapToggle({
+                        on: "ON",
+                        off: "OFF",
+                        width: 45.0625,
+                        height: 25,
+                        onstyle: "success",
+                        offstyle: "danger pl-3",
+                        size: "xs",
+                    })
+                    if (row.dataset.value == 1) {
+                        toggler.bootstrapToggle('on');
+                    }
+                    toggler.change(function () {
+                        $(row).data('value', Math.abs($(row).data().value - 1))
+                        update_perm.bind($(row))()
+
+                    })
+
+                },
+                "aaSorting": [],
+                "searching": false,
+                "paging": false,
+                "info": false,
+                "bAutoWidth": false,
+                "columnDefs": [
+                    {
+                        "data": null,
+                        "defaultContent": '<input type="checkbox">',
+                        "targets": -2
+                    },
+                    {
+                        "data": null,
+                        "defaultContent": '<button type="button" class="btn btn-outline-danger btn-sm" style="padding: 0.5rem" onclick="remove_perm($(this))">Delete</button>',
+                        "targets": -1
+                    }
+                ]
+            });
+
+            group_perms_table.DataTable({
+                "aaSorting": [],
+                "searching": false,
+                "paging": false,
+                "info": false,
+                "bAutoWidth": false
+            });
+
+            default_perms_table.DataTable({
+                "aaSorting": [],
+                "searching": false,
+                "paging": false,
+                "info": false,
+                "bAutoWidth": false
+            });
+        })
+
+        $(document).on('click', 'td.dt-control', function () {
+            let tr = $(this).closest('tr');
+            let table = $(this).closest('table')
+            let status = 'disabled'
+            let row = table.DataTable().row(tr);
+            let data = tr.data()
+
+            if (table.is('table:first')) {
+                status = ''
+            }
+
+            if (typeof data.params === 'object') {
+                data.params = JSON.stringify(data.params)
+            }
+
+            if (row.child.isShown()) {
+                row.child.hide();
+                tr.removeClass('shown');
+            } else {
+                row.child(format(data, status)).show();
+                tr.addClass('shown');
+            }
+        })
+
+        let timeout;
+        $('body').on('input', 'table:first textarea', function () {
+            clearTimeout(timeout);
+            let row = $(this).parents().eq(5).closest('tr').prev()
+            row.data('params', $(this).val())
+            timeout = setTimeout(update_perm.bind(row), 1000)
+        })
+
+    </script>
+
+{% endblock %}

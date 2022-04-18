@@ -1,0 +1,215 @@
+{% if not config.get('AUTH_STANDALONE') %}
+
+<script src="{{ url_for('auth_submodule.static', filename='js/qrLib.js') }}"></script>
+
+<script>
+    function saveSession(data) {
+        fetch(
+            "{{ url_for('auth_submodule.save_session') }}",
+            {
+                method: "post",
+                headers: {
+                    "Accept": "application/json",
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    session_token: data.session_token
+                })
+            }
+        ).then(
+            function (response) {
+                afterSaveSession();
+            }
+        )
+    }
+
+    
+    function afterSaveSession() {
+        window.location.replace('/')
+    }
+
+    let save_session_started = false
+
+    function SetServiceCookie(msg, qr_type) {
+        const Set = () => {
+            document.cookie = "{{ config.get('SERVICE_NAME') | title }}=" + msg.session_token + "; path=/";
+            saveSession(msg);
+        }
+
+        if (msg["session_token"] !== undefined && save_session_started == false) {
+            save_session_started = true;
+            if (qr_type === 'registration') {
+                afterSignUp(msg).then(() => Set());
+            }
+            else {
+                Set()
+            }
+        }
+    }
+
+
+    function generateQr(data, elementId){
+        const qr2 = new VanillaQR({
+            url: data,
+            width: 600,
+            height: 600,
+            colorLight: "#ffffff",
+            colorDark: "#000000",
+            noBorder: true,
+        });
+    
+        const imageElement = qr2.toImage("png");
+        if (imageElement) {
+            const qr_html = document.getElementById(elementId)
+            const oldQrImg = qr_html.getElementsByTagName('img')[0];
+    
+           if(oldQrImg) {
+               qr_html.replaceChild(imageElement, oldQrImg)
+           } else {
+               switch (elementId) {
+                   case LoginQrWrapperID:
+                       insertLoginQrCode(qr_html, imageElement);
+                       break;
+                   case RegistrationQrWrapperID:
+                       insertRegistrationQrCode(qr_html, imageElement);
+                       break;
+                   default:
+                       break;
+               }
+           }
+        }
+    }
+
+    let currentTimerIdAndTypeOfRequest = {};
+
+    function emitQRToken(data) {
+        const {qr_type} = data;
+
+        let startTime;
+
+        const qrVisibilityFunc = (hide) => {
+            switch (qr_type) {
+                case 'authentication':
+                    timeRange = LoginQrTimeRange;
+                    changeVisibilityLoginQrCode(hide);
+                    break;
+                case 'registration':
+                    timeRange = RegistrationQrTimeRange;
+                    changeVisibilityRegistrationQrCode(hide);
+                    break;
+                default:
+                    break;
+            }
+            startTime = Date.now() + timeRange * 1000;
+        }
+
+        const getQrSessionToken = async () => {
+            try {
+                if (!getCookie('temporary_session')) {
+                    const qr_response = await fetch("{{ url_for('auth_submodule.auth_qr_login') }}", {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8'},
+                        body: JSON.stringify(data)
+                    });
+                    if (qr_response.status === 200) {
+                        const serviceCookie = await qr_response.json(); // extract JSON from the http response
+                        SetServiceCookie(serviceCookie, qr_type)
+                    }
+                }
+            } catch (err) {
+                console.log(err);
+            } finally {
+                const finishTime = Date.now();
+
+                if (finishTime < startTime) {
+                    const timeout = qr_type == 'authentication' ? 2000 : 3000;
+                    currentTimerIdAndTypeOfRequest[qr_type] = setTimeout(getQrSessionToken, timeout);
+                } else {
+                    qrVisibilityFunc(false)
+                }
+            }
+        }
+
+        qrVisibilityFunc(true)
+        clearTimeout(currentTimerIdAndTypeOfRequest[qr_type]);
+        getQrSessionToken();
+    }
+
+    function getQrCode(qr_type) {
+        url = "{{ url_for('auth_submodule.qr-code') }}" + "?qr_type=" + qr_type;
+        fetch(url)
+            .then(function (response) {
+                response.json()
+                    .then(
+                        function (data) {
+                            let elementId = qr_type === 'authentication' ? LoginQrWrapperID : RegistrationQrWrapperID 
+                            generateQr(JSON.stringify(data), elementId)
+                            emitQRToken({
+                                ...data,
+                                qr_type: qr_type
+                            })
+                        }
+                    )
+            })
+        return false;
+    }
+
+    function getCookie(cookie_name) {
+        let name = cookie_name + "=";
+        let decodedCookie = decodeURIComponent(document.cookie);
+        let ca = decodedCookie.split(';');
+        for (let i = 0; i < ca.length; i++) {
+            let c = ca[i];
+            while (c.charAt(0) === ' ') {
+                c = c.substring(1);
+            }
+            if (c.indexOf(name) === 0) {
+                return c.substring(name.length, c.length);
+            }
+        }
+        return "";
+    }
+
+    let LoginQrWrapperID = ''
+    let RegistrationQrWrapperID = ''
+    let LoginQrTimeRange = 45;  // period when the SignIn request will be sent (in sec)
+    let RegistrationQrTimeRange = 120;  // period when the SignUp request will be sent (in sec)
+
+    function insertLoginQrCode (qr_wrapper, imageElement) {
+        qr_wrapper.innerHTML = '';
+        qr_wrapper.appendChild(imageElement);
+    }
+
+    function insertRegistrationQrCode (qr_wrapper, imageElement) {
+        insertLoginQrCode(qr_wrapper, imageElement)
+    }
+
+    function changeVisibilityLoginQrCode(hide) {
+        let wrapper = document.getElementById(LoginQrWrapperID);
+        if (!hide) {
+            wrapper.style.opacity = 0.2;
+        }
+        else {
+            wrapper.style.opacity = 1;
+        }
+    }
+
+    function changeVisibilityRegistrationQrCode(hide) {
+        let wrapper = document.getElementById(RegistrationQrWrapperID);
+        if (!hide) {
+            wrapper.style.opacity = 0.1;
+        }
+        else {
+            wrapper.style.opacity = 1;
+        }
+    }
+
+    function afterSignUp(response) {
+        return new Promise(((resolve, reject) => {
+            resolve()
+        }))
+    }
+
+</script>
+
+{% endif %}
