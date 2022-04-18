@@ -1,10 +1,11 @@
 """Reference implementation for Bech32 and segwit addresses - tweaked to provide descriptive errors"""
 
-from typing import Tuple, List
+from typing import List, Tuple
 
 
 class Bech32DecodeError(Exception):
     pass
+
 
 Bytes = List[int]
 
@@ -13,11 +14,11 @@ CHARSET = "qpzry9x8gf2tvdw0s3jn54khce6mua7l"
 
 def bech32_polymod(values: Bytes) -> int:
     """Internal function that computes the Bech32 checksum."""
-    generator = [0x3b6a57b2, 0x26508e6d, 0x1ea119fa, 0x3d4233dd, 0x2a1462b3]
+    generator = [0x3B6A57B2, 0x26508E6D, 0x1EA119FA, 0x3D4233DD, 0x2A1462B3]
     chk = 1
     for value in values:
         top = chk >> 25
-        chk = (chk & 0x1ffffff) << 5 ^ value
+        chk = (chk & 0x1FFFFFF) << 5 ^ value
         for i in range(5):
             chk ^= generator[i] if ((top >> i) & 1) else 0
     return chk
@@ -43,38 +44,38 @@ def bech32_create_checksum(hrp: str, data: Bytes) -> Bytes:
 def bech32_encode(hrp: str, data: Bytes) -> str:
     """Compute a Bech32 string given HRP and data values."""
     combined = data + bech32_create_checksum(hrp, data)
-    return hrp + '1' + ''.join([CHARSET[d] for d in combined])
+    return hrp + "1" + "".join([CHARSET[d] for d in combined])
 
 
 def bech32_decode(bech: str) -> Tuple[str, Bytes]:
     """Validate a Bech32 string, and determine HRP and data."""
     if any(ord(x) < 33 or ord(x) > 126 for x in bech):
-        raise Bech32DecodeError('Character outside the US-ASCII [33-126] range')
+        raise Bech32DecodeError("Character outside the US-ASCII [33-126] range")
 
     if (bech.lower() != bech) and (bech.upper() != bech):
-        raise Bech32DecodeError('Mixed upper and lower case')
+        raise Bech32DecodeError("Mixed upper and lower case")
 
     bech = bech.lower()
-    pos = bech.rfind('1')
+    pos = bech.rfind("1")
 
     if pos == 0:
-        raise Bech32DecodeError('Empty human readable part')
+        raise Bech32DecodeError("Empty human readable part")
     elif pos == -1:
-        raise Bech32DecodeError('No seperator character')
+        raise Bech32DecodeError("No seperator character")
     elif pos + 7 > len(bech):
-        raise Bech32DecodeError('Checksum too short')
+        raise Bech32DecodeError("Checksum too short")
 
     if len(bech) > 90:
-        raise Bech32DecodeError('Max string length exceeded')
+        raise Bech32DecodeError("Max string length exceeded")
 
-    if not all(x in CHARSET for x in bech[pos + 1:]):
-        raise Bech32DecodeError('Character not in charset')
+    if not all(x in CHARSET for x in bech[pos + 1 :]):
+        raise Bech32DecodeError("Character not in charset")
 
     hrp = bech[:pos]
-    data = [CHARSET.find(x) for x in bech[pos + 1:]]
+    data = [CHARSET.find(x) for x in bech[pos + 1 :]]
 
     if not bech32_verify_checksum(hrp, data):
-        raise Bech32DecodeError('Invalid checksum')
+        raise Bech32DecodeError("Invalid checksum")
 
     return hrp, data[:-6]
 
@@ -106,19 +107,19 @@ def decode(hrp: str, addr: str) -> Tuple[int, Bytes]:
     """Decode a segwit address."""
     hrpgot, data = bech32_decode(addr)
     if hrpgot != hrp:
-        raise Bech32DecodeError('Human readable part mismatch')
+        raise Bech32DecodeError("Human readable part mismatch")
 
     decoded = convertbits(data[1:], 5, 8, False)
     if decoded is None or len(decoded) < 2:
-        raise Bech32DecodeError('Witness programm too short')
+        raise Bech32DecodeError("Witness programm too short")
     elif len(decoded) > 40:
-        raise Bech32DecodeError('Witness programm too long')
+        raise Bech32DecodeError("Witness programm too long")
 
     if data[0] > 16:
-        raise Bech32DecodeError('Invalid witness version')
+        raise Bech32DecodeError("Invalid witness version")
 
     if data[0] == 0 and (len(decoded) not in (20, 32)):
-        raise Bech32DecodeError('Could not interpret witness programm')
+        raise Bech32DecodeError("Could not interpret witness programm")
 
     return data[0], decoded
 

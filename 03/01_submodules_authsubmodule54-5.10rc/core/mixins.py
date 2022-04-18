@@ -2,6 +2,7 @@ class UserMixin(object):
     """
     Default object for representing user
     """
+
     def __init__(self, user):
         self.user = user
 
@@ -22,6 +23,7 @@ class AnonymousUserMixin(object):
     """
     Default object for representing an anonymous user
     """
+
     def __init__(self):
         self.user = None
 
@@ -36,4 +38,3 @@ class AnonymousUserMixin(object):
     @property
     def is_anonymous(self):
         return True
-

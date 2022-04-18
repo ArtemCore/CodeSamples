@@ -1,4 +1,4 @@
-from bitcoin_key_gen import private_key, get_bitcoin_address
+from bitcoin_key_gen import get_bitcoin_address, private_key
 
 
 def get_key_pairs():

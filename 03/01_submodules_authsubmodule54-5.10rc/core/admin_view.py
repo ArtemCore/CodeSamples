@@ -1,33 +1,20 @@
-from flask import g
-from flask import jsonify
-from flask import make_response
 from flask import current_app as app
-from flask import render_template
-from flask import request
-from flask import redirect
-from flask import url_for
-from flask import session
+from flask import (g, jsonify, make_response, redirect, render_template,
+                   request, session, url_for)
 from flask.views import MethodView
 from flask_cors import cross_origin
-
-from werkzeug.exceptions import NotFound
 from psycopg2 import errors
+from werkzeug.exceptions import NotFound
 
-from .actor import Actor
-from .actor import ActorNotFound
-from .utils import get_current_actor
-from .utils import create_response_message
-from .decorators import admin_only
-from .decorators import standalone_only
-from .decorators import token_required
-from .actions.actor_actions import CreateActorAction
-from .actions.actor_actions import DeleteActorAction
-from .actions.standalone_actions import UpdateProfileAction
-from .actions.standalone_actions import UpdateActorAction
-from .actions.permactions_actions import GetAllPermsAction
-from .actions.permactions_actions import SetPermactionAction
-from .actions.permactions_actions import DeletePermactionAction
-from .actions.permactions_actions import UpdatePermactionAction
+from .actions.actor_actions import CreateActorAction, DeleteActorAction
+from .actions.permactions_actions import (DeletePermactionAction,
+                                          GetAllPermsAction,
+                                          SetPermactionAction,
+                                          UpdatePermactionAction)
+from .actions.standalone_actions import UpdateActorAction, UpdateProfileAction
+from .actor import Actor, ActorNotFound
+from .decorators import admin_only, standalone_only, token_required
+from .utils import create_response_message, get_current_actor
 
 
 class AdminView(MethodView):
@@ -44,7 +31,7 @@ class AdminView(MethodView):
         Redirect to page with profile info
         @subm_flow
         """
-        return redirect(url_for('auth_submodule.admin_profile'))
+        return redirect(url_for("auth_submodule.admin_profile"))
 
     @standalone_only
     @token_required
@@ -54,9 +41,9 @@ class AdminView(MethodView):
                 Logout and redirect to home page
                 @subm_flow
                 """
-        session.pop('session_token', None)
-        response = make_response(redirect('/'))
-        response.delete_cookie(app.config.get('SERVICE_NAME').capitalize())
+        session.pop("session_token", None)
+        response = make_response(redirect("/"))
+        response.delete_cookie(app.config.get("SERVICE_NAME").capitalize())
         return response
 
 
@@ -76,8 +63,8 @@ class AdminActorsView(MethodView):
         @subm_flow  Get page with list of actors
         """
         actors = Actor.objects.filter()
-        groups = Actor.objects.filter(actor_type='group')
-        return render_template('admin_panel/actors.html', actors=actors, groups=groups)
+        groups = Actor.objects.filter(actor_type="group")
+        return render_template("admin_panel/actors.html", actors=actors, groups=groups)
 
     @standalone_only
     @admin_only
@@ -87,8 +74,14 @@ class AdminActorsView(MethodView):
                Create a new actor based on request body
                @subm_flow Create a new actor based on request body
                """
-        if not request.is_json or not request.json.get('uinfo') or not request.json.get('actor_type'):
-            response = create_response_message(message='Invalid request type', error=True)
+        if (
+            not request.is_json
+            or not request.json.get("uinfo")
+            or not request.json.get("actor_type")
+        ):
+            response = create_response_message(
+                message="Invalid request type", error=True
+            )
             return make_response(jsonify(response), 400)
         actor = request.json
         response, status = CreateActorAction(actor).execute()
@@ -102,11 +95,13 @@ class AdminActorsView(MethodView):
         Delete actor based on request body
         @subm_flow  Delete actor based on request body
         """
-        if not request.is_json or not request.json.get('uuid'):
-            response = create_response_message(message='Invalid request type', error=True)
+        if not request.is_json or not request.json.get("uuid"):
+            response = create_response_message(
+                message="Invalid request type", error=True
+            )
             return make_response(jsonify(response), 400)
         data = request.json
-        actor = Actor.objects.get(uuid=data.get('uuid'))
+        actor = Actor.objects.get(uuid=data.get("uuid"))
         response, status = DeleteActorAction(actor.__dict__).execute()
         return make_response(jsonify(response), status)
 
@@ -125,26 +120,32 @@ class AdminActorView(MethodView):
         Get page with actor detail based on uuid
         @subm_flow
         """
-        #TODO try catch for requests
+        # TODO try catch for requests
         try:
             actor = Actor.objects.get(uuid=uuid)
         except ActorNotFound:
-            raise NotFound('No actor with such UUID found')
+            raise NotFound("No actor with such UUID found")
         except errors.InvalidTextRepresentation:
-            raise NotFound('Invalid UUID representation')
+            raise NotFound("Invalid UUID representation")
 
         uinfo = actor.uinfo
-        if actor.actor_type in ['user', 'classic_user']:
-            if actor.actor_type == 'classic_user':
-                uinfo.pop('password')
+        if actor.actor_type in ["user", "classic_user"]:
+            if actor.actor_type == "classic_user":
+                uinfo.pop("password")
 
         # perms = actor.get_permissions()
         perms = GetAllPermsAction(actor.uuid).execute()
         actor_groups = {group.uuid: group for group in actor.get_groups()}
-        groups = Actor.objects.filter(actor_type='group')
+        groups = Actor.objects.filter(actor_type="group")
         actors = Actor.objects.filter()
-        return render_template('admin_panel/actor.html', actor=actor, perms=perms,
-                               actor_groups=actor_groups, groups=groups, actors=actors)
+        return render_template(
+            "admin_panel/actor.html",
+            actor=actor,
+            perms=perms,
+            actor_groups=actor_groups,
+            groups=groups,
+            actors=actors,
+        )
 
     @standalone_only
     @admin_only
@@ -164,6 +165,7 @@ class AdminProfileView(MethodView):
     @GET Get page with self admin profile info@
     @PUT Update self admin profile partially based on request body@
     """
+
     @standalone_only
     @token_required
     @cross_origin()
@@ -174,10 +176,12 @@ class AdminProfileView(MethodView):
         """
         actor = get_current_actor()
         actor_groups = {group.uuid: group for group in actor.get_groups()}
-        if not hasattr(g, 'actor'):
-            setattr(g, 'actor', actor)
+        if not hasattr(g, "actor"):
+            setattr(g, "actor", actor)
         perms = GetAllPermsAction(actor.uuid).execute()
-        return render_template('admin_panel/profile.html', perms=perms, actor_groups=actor_groups)
+        return render_template(
+            "admin_panel/profile.html", perms=perms, actor_groups=actor_groups
+        )
 
     @standalone_only
     @token_required

@@ -5,6 +5,7 @@ class Migration(base.BaseMigration):
     """
     Phantom actor table
     """
+
     forwards_query = f"""
 
         CREATE TABLE phantom_relation (
@@ -18,4 +19,3 @@ class Migration(base.BaseMigration):
     backwards_query = f"""
         DROP TABLE phantom_relation CASCADE;
     """
-

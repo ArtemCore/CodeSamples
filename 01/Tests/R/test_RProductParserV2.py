@@ -4,7 +4,6 @@ from http import HTTPStatus
 from unittest.mock import MagicMock
 
 from bson import ObjectId
-
 from Middleware.Context import Context
 from Model.enums import POS
 from Model.operationReport import OperationReport, OperationReportStatus

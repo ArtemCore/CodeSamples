@@ -5,6 +5,7 @@ class Migration(base.BaseMigration):
     """
     Create function to update/create actor from actors list of json
     """
+
     forwards_query = """
         DROP FUNCTION IF EXISTS get_received_actors CASCADE;
         -- Reformat array of actors in json to the table where column key is json key and column value is json value

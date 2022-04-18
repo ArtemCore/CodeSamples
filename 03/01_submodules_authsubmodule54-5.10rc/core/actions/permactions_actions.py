@@ -1,10 +1,5 @@
 import json
-
-from typing import List
-from typing import Optional
-from typing import Dict
-from typing import Tuple
-from typing import Union
+from typing import Dict, List, Optional, Tuple, Union
 
 from flask import current_app as app
 
@@ -13,12 +8,12 @@ from ..utils import create_response_message
 
 
 class GetGroupPermsAction:
-
     def __init__(self, actor_uuid) -> None:
         self.actor_uuid = actor_uuid
 
     def execute(self) -> List:
-        permissions = app.db.fetchall("""
+        permissions = app.db.fetchall(
+            """
             SELECT
                 DPA.description as description,
                 DPA.service_uuid as service_uuid,
@@ -41,18 +36,18 @@ class GetGroupPermsAction:
             ORDER BY 
                 GPA.weight desc 
             """,
-            [self.actor_uuid]
-          )
+            [self.actor_uuid],
+        )
         return permissions
 
 
 class GetActorPermsAction:
-
     def __init__(self, actor_uuid) -> None:
         self.actor_uuid = actor_uuid
 
     def execute(self) -> Dict:
-        actor_permissions = app.db.fetchall("""
+        actor_permissions = app.db.fetchall(
+            """
             SELECT
                 DPA.description as description,
                 DPA.service_uuid as service_uuid,
@@ -72,22 +67,18 @@ class GetActorPermsAction:
             WHERE
                 APA.actor_uuid = ANY(%s::uuid[]);
             """,
-            [self.actor_uuid]
+            [self.actor_uuid],
         )
         return actor_permissions
 
 
 class GetDefaultPermsAction:
-
     def execute(self) -> Union[Dict, List]:
-        default_permactions = app.db.fetchall(
-            """SELECT * FROM default_permaction""",
-        )
+        default_permactions = app.db.fetchall("""SELECT * FROM default_permaction""",)
         return default_permactions
 
 
 class GetAllPermsAction:
-
     def __init__(self, actor_uuid) -> None:
         self.actor_perms: Optional[List] = None
         self.groups_perms: Optional[List] = None
@@ -105,29 +96,28 @@ class GetAllPermsAction:
 
     def get_actor_perms(self) -> None:
         self.actor_perms = GetActorPermsAction([self.actor_uuid]).execute()
-        self.perms['actor'] = self.actor_perms
+        self.perms["actor"] = self.actor_perms
 
     def get_groups_perms(self) -> None:
-        if self.actor.actor_type == 'group':
+        if self.actor.actor_type == "group":
             self.groups_perms = GetGroupPermsAction([self.actor_uuid]).execute()
-            self.perms['actor'] = self.groups_perms
+            self.perms["actor"] = self.groups_perms
         else:
             self.groups_perms = GetGroupPermsAction(self.groups).execute()
-            self.perms['groups'] = self.groups_perms
+            self.perms["groups"] = self.groups_perms
 
     def get_default_perms(self) -> None:
         self.default_perms = GetDefaultPermsAction().execute()
-        self.perms['default'] = self.default_perms
+        self.perms["default"] = self.default_perms
 
 
 class BasePermactionAction:
-
     def __init__(self, data: Dict) -> None:
-        self.actor_uuid: str = data.get('actor_uuid')
-        self.perm_uuid: str = data.get('perm_uuid')
-        self.value: Optional[str] = data.get('value')
-        self.params: Optional[str] = data.get('params')
-        self.weight: Optional[int] = data.get('weight')
+        self.actor_uuid: str = data.get("actor_uuid")
+        self.perm_uuid: str = data.get("perm_uuid")
+        self.value: Optional[str] = data.get("value")
+        self.params: Optional[str] = data.get("params")
+        self.weight: Optional[int] = data.get("weight")
         self.query: Optional[str] = None
         self.sql_params: Optional[List] = None
         self.actor = Actor.objects.get(uuid=self.actor_uuid)
@@ -140,7 +130,7 @@ class BasePermactionAction:
         try:
             app.db.execute(self.query, self.sql_params)
         except Exception as e:
-            print(f'Exception on {self.__class__.__name__}! {e}')
+            print(f"Exception on {self.__class__.__name__}! {e}")
             self.error = True
 
     def check_error(self) -> None:
@@ -150,7 +140,6 @@ class BasePermactionAction:
 
 
 class SetPermactionAction(BasePermactionAction):
-
     def __init__(self, data: Dict) -> None:
         super().__init__(data)
 
@@ -161,20 +150,30 @@ class SetPermactionAction(BasePermactionAction):
         return self.response, self.status_code
 
     def select_sql(self):
-        if self.actor.actor_type in ['classic_user', 'user', 'service']:
+        if self.actor.actor_type in ["classic_user", "user", "service"]:
             self.query = """INSERT INTO actor_permaction(permaction_uuid, actor_uuid, service_uuid, value, params)
                                        VALUES(%s, %s, %s, %s, %s)"""
-            self.sql_params = [self.perm_uuid, self.actor_uuid, app.config.get('SERVICE_UUID'),
-                               self.value, json.dumps(self.params)]
-        elif self.actor.actor_type == 'group':
+            self.sql_params = [
+                self.perm_uuid,
+                self.actor_uuid,
+                app.config.get("SERVICE_UUID"),
+                self.value,
+                json.dumps(self.params),
+            ]
+        elif self.actor.actor_type == "group":
             self.query = """INSERT INTO group_permaction(permaction_uuid, actor_uuid, service_uuid, value,
                              params, weight) VALUES(%s, %s, %s, %s, %s, %s)"""
-            self.sql_params = [self.perm_uuid, self.actor_uuid, app.config.get('SERVICE_UUID'),
-                               self.value, json.dumps(self.params), self.actor.uinfo['weight']]
+            self.sql_params = [
+                self.perm_uuid,
+                self.actor_uuid,
+                app.config.get("SERVICE_UUID"),
+                self.value,
+                json.dumps(self.params),
+                self.actor.uinfo["weight"],
+            ]
 
 
 class UpdatePermactionAction(BasePermactionAction):
-
     def __init__(self, data: Dict) -> None:
         super().__init__(data)
 
@@ -185,19 +184,28 @@ class UpdatePermactionAction(BasePermactionAction):
         return self.response, self.status_code
 
     def select_sql(self):
-        if self.actor.actor_type in ['classic_user', 'user', 'service']:
+        if self.actor.actor_type in ["classic_user", "user", "service"]:
             self.query = """UPDATE actor_permaction SET value = %s, params = %s
                                     WHERE actor_uuid = %s and permaction_uuid = %s"""
-            self.sql_params = [self.value, json.dumps(self.params), self.actor_uuid, self.perm_uuid]
-        elif self.actor.actor_type == 'group':
+            self.sql_params = [
+                self.value,
+                json.dumps(self.params),
+                self.actor_uuid,
+                self.perm_uuid,
+            ]
+        elif self.actor.actor_type == "group":
             self.query = """UPDATE group_permaction SET value = %s, params = %s, weight = %s
                         WHERE actor_uuid = %s and permaction_uuid = %s"""
-            self.sql_params = [self.value, json.dumps(self.params), self.actor.uinfo['weight'],
-                               self.actor_uuid, self.perm_uuid]
+            self.sql_params = [
+                self.value,
+                json.dumps(self.params),
+                self.actor.uinfo["weight"],
+                self.actor_uuid,
+                self.perm_uuid,
+            ]
 
 
 class DeletePermactionAction(BasePermactionAction):
-
     def __init__(self, data: Dict) -> None:
         super().__init__(data)
 
@@ -208,8 +216,8 @@ class DeletePermactionAction(BasePermactionAction):
         return self.response, self.status_code
 
     def select_sql(self):
-        if self.actor.actor_type in ['classic_user', 'user', 'service']:
+        if self.actor.actor_type in ["classic_user", "user", "service"]:
             self.query = """DELETE FROM actor_permaction WHERE actor_uuid = %s and permaction_uuid = %s"""
-        elif self.actor.actor_type == 'group':
+        elif self.actor.actor_type == "group":
             self.query = """DELETE FROM group_permaction WHERE actor_uuid = %s and permaction_uuid = %s"""
         self.sql_params = [self.actor_uuid, self.perm_uuid]

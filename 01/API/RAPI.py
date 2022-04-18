@@ -7,90 +7,60 @@ from urllib.parse import parse_qs
 
 # third party
 from dacite import from_dict
-
-# inhouse
-
-from exceptions import (
-    BusinessClosed,
-    InvalidPOSAPIResult,
-    InvalidPOSConfiguration,
-    OutOfStockException,
-    UnexpectedPOSException,
-)
+from exceptions import (BusinessClosed, InvalidPOSAPIResult,
+                        InvalidPOSConfiguration, OutOfStockException,
+                        UnexpectedPOSException)
 from Middleware.Context import Context
-from Middleware.DCModel import Account, ChannelLink, Customer, Location, Order, OrderStatus, OrderStatusUpdate
+from Middleware.DCModel import (Account, ChannelLink, Customer, Location,
+                                Order, OrderStatus, OrderStatusUpdate)
 from Model.enums import POS, RequestType
 from Model.integration import IntegrationInfo, POSHealthCheckResult
 from Model.operationReport import OperationReportStatus
 from Model.product import ProductSyncInfo, ProductSyncSettings
-from Model.settings import AppStoreActionSettingsResponse, GenericSetting, ValidateSettingsResponse
+from Model.settings import (AppStoreActionSettingsResponse, GenericSetting,
+                            ValidateSettingsResponse)
 from POSSystems.BasePOS.BasePOSAPI import BasePOSAPI
-from POSSystems.R.RConstants import (
-    CHUNK_LIMIT,
-    DC_DELIVERY_FEE_KEY,
-    DC_DISCOUNT_BARCODE,
-    DC_DISCOUNT_NAME,
-    DC_SERVICE_CHARGE_KEY,
-    DC_SERVICE_FEE_MAP,
-    R_LIMIT,
-    R_NEW_API_URL,
-    R_PREVAILING_TAX_SETTING_NAME,
-    RApiMethods,
-    RApiVersion,
-)
-from POSSystems.R.RModel import (
-    RAPICustomPaymentType,
-    RAPIObject,
-    RAPIUser,
-    RCustomMenu,
-    RCustomPaymentType,
-    RDiscount,
-    RDynamicCombo,
-    REstablishment,
-    RFloor,
-    RPrevailingTax,
-    RProduct,
-    RProductAttribute,
-    RProductGroup,
-    RProductModifier,
-    RProductModifierGroup,
-    RProductModifierInfo,
-    RProductTaxGroup,
-    RServiceFee,
-    RTable,
-    RUser,
-    RWebOrder,
-)
+from POSSystems.R.RConstants import (CHUNK_LIMIT, DC_DELIVERY_FEE_KEY,
+                                     DC_DISCOUNT_BARCODE, DC_DISCOUNT_NAME,
+                                     DC_SERVICE_CHARGE_KEY, DC_SERVICE_FEE_MAP,
+                                     R_LIMIT, R_NEW_API_URL,
+                                     R_PREVAILING_TAX_SETTING_NAME,
+                                     RApiMethods, RApiVersion)
+from POSSystems.R.RModel import (RAPICustomPaymentType, RAPIObject, RAPIUser,
+                                 RCustomMenu, RCustomPaymentType, RDiscount,
+                                 RDynamicCombo, REstablishment, RFloor,
+                                 RPrevailingTax, RProduct, RProductAttribute,
+                                 RProductGroup, RProductModifier,
+                                 RProductModifierGroup, RProductModifierInfo,
+                                 RProductTaxGroup, RServiceFee, RTable, RUser,
+                                 RWebOrder)
 from POSSystems.R.RParser import RParser
-from POSSystems.R.setup import (
-    VALIDATE_REQUIRED_SETTINGS_MAPPING,
-    RSettings,
-    getCallNameTemplateSetting,
-    getConnectionSettings,
-    getCountrySetting,
-    getCustomCashPaymentTypeSetting,
-    getCustomMenuSetting,
-    getDefaultTaxRateSetting,
-    getDeliveryDiningOptionSetting,
-    getDeliveryFeeAliasSetting,
-    getDiscountBarcodeSetting,
-    getEatInDiningOptionSetting,
-    getEstablishmentSetting,
-    getModifierTaxRateOverrideSetting,
-    getPaymentTypeSetting,
-    getPickupDiningOptionSetting,
-    getServiceChargeAliasSetting,
-    getUseOverloadsSetting,
-    getUseProductSyncV2Setting,
-    getUserSetting,
-    getUseSlowSyncSetting,
-    getUseVariantSetting,
-    getUseWebOrderMenuSetting,
-)
-from settings import DOMAIN_URL, R_CONNECT_TIMEOUT_IN_SECONDS, R_READ_TIMEOUT_IN_SECONDS
+from POSSystems.R.setup import (VALIDATE_REQUIRED_SETTINGS_MAPPING, RSettings,
+                                getCallNameTemplateSetting,
+                                getConnectionSettings, getCountrySetting,
+                                getCustomCashPaymentTypeSetting,
+                                getCustomMenuSetting, getDefaultTaxRateSetting,
+                                getDeliveryDiningOptionSetting,
+                                getDeliveryFeeAliasSetting,
+                                getDiscountBarcodeSetting,
+                                getEatInDiningOptionSetting,
+                                getEstablishmentSetting,
+                                getModifierTaxRateOverrideSetting,
+                                getPaymentTypeSetting,
+                                getPickupDiningOptionSetting,
+                                getServiceChargeAliasSetting,
+                                getUseOverloadsSetting,
+                                getUseProductSyncV2Setting, getUserSetting,
+                                getUseSlowSyncSetting, getUseVariantSetting,
+                                getUseWebOrderMenuSetting)
+from settings import (DOMAIN_URL, R_CONNECT_TIMEOUT_IN_SECONDS,
+                      R_READ_TIMEOUT_IN_SECONDS)
 from Utilities import isReachable, returnOnFailure
 from Utilities.helpers import chunks, validateEmail
 from Utilities.settings import convertSecretFieldsToPasswordType
+
+# inhouse
+
 
 
 class RAPI(BasePOSAPI):
@@ -151,9 +121,13 @@ class RAPI(BasePOSAPI):
         self.establishmentId = None
         if self.establishment:
             try:
-                self.establishmentId = int(self.establishment.split("/")[-2])  # trailing slash in resourceUri
+                self.establishmentId = int(
+                    self.establishment.split("/")[-2]
+                )  # trailing slash in resourceUri
             except (SyntaxError, IndexError, ValueError):
-                self.logger.error(f"Unexpected resourceUri format: {self.establishment}")
+                self.logger.error(
+                    f"Unexpected resourceUri format: {self.establishment}"
+                )
 
         self.expectedDiscountName: str = ""
         self.expectedDiscountBarcode: str = ""
@@ -166,13 +140,17 @@ class RAPI(BasePOSAPI):
             channelLinkName = self.channelLink.channel.name
             self.expectedDiscountName = f"{channelLinkName} {DC_DISCOUNT_NAME}"
             # discount barcode maxLength=16
-            self.expectedDiscountBarcode = f"{channelLinkName.replace('_', '-')}-{DC_DISCOUNT_BARCODE}"[:16]
-            self.expectedServiceChargeName, self.expectedServiceChargeAlias = self._getServiceFeeItemNameAndAlias(
-                DC_SERVICE_CHARGE_KEY
-            )
-            self.expectedDeliveryFeeName, self.expectedDeliveryFeeAlias = self._getServiceFeeItemNameAndAlias(
-                DC_DELIVERY_FEE_KEY
-            )
+            self.expectedDiscountBarcode = f"{channelLinkName.replace('_', '-')}-{DC_DISCOUNT_BARCODE}"[
+                :16
+            ]
+            (
+                self.expectedServiceChargeName,
+                self.expectedServiceChargeAlias,
+            ) = self._getServiceFeeItemNameAndAlias(DC_SERVICE_CHARGE_KEY)
+            (
+                self.expectedDeliveryFeeName,
+                self.expectedDeliveryFeeAlias,
+            ) = self._getServiceFeeItemNameAndAlias(DC_DELIVERY_FEE_KEY)
 
     def _callPOSAPI(self, method: RequestType, route: str, **kwargs):
         """
@@ -185,7 +163,9 @@ class RAPI(BasePOSAPI):
         clientId = self.settings.clientID
 
         if not all([self.settings.clientID, self.apiKey, self.secretKey]):
-            raise InvalidPOSConfiguration("R POS setup isn't completed, please define all settings.")
+            raise InvalidPOSConfiguration(
+                "R POS setup isn't completed, please define all settings."
+            )
 
         headers = {
             "API-AUTHENTICATION": f"{self.apiKey}:{self.secretKey}",
@@ -199,7 +179,10 @@ class RAPI(BasePOSAPI):
             kwargs["headers"]["Client-Id"] = clientId
 
         if R_CONNECT_TIMEOUT_IN_SECONDS and R_READ_TIMEOUT_IN_SECONDS:
-            kwargs["timeout"] = (R_CONNECT_TIMEOUT_IN_SECONDS, R_READ_TIMEOUT_IN_SECONDS)
+            kwargs["timeout"] = (
+                R_CONNECT_TIMEOUT_IN_SECONDS,
+                R_READ_TIMEOUT_IN_SECONDS,
+            )
 
         response = super()._callPOSAPI(method, route, **kwargs)
         # check response codes of call
@@ -211,8 +194,7 @@ class RAPI(BasePOSAPI):
             HTTPStatus.BAD_REQUEST,
         ]:
             raise InvalidPOSAPIResult(
-                HTTPResponse=str(response.status_code),
-                message=response.text,
+                HTTPResponse=str(response.status_code), message=response.text,
             )
         return response
 
@@ -232,7 +214,9 @@ class RAPI(BasePOSAPI):
         try:
             self._getEstablishmentsInfo()
         except (InvalidPOSAPIResult, UnexpectedPOSException, InvalidPOSConfiguration):
-            self.logger.warning(f"Invalid credentials for R location #{self.location.oid}")
+            self.logger.warning(
+                f"Invalid credentials for R location #{self.location.oid}"
+            )
             isValid = False
         return isValid
 
@@ -247,7 +231,11 @@ class RAPI(BasePOSAPI):
     @returnOnFailure([])
     def getCustomMenus(self) -> List[RAPIObject]:
         """Get Custom Menus from R POS"""
-        params = {"active": True, "establishment": self.establishmentId, "fields": "name"}
+        params = {
+            "active": True,
+            "establishment": self.establishmentId,
+            "fields": "name",
+        }
         route: str = RApiMethods.CUSTOM_MENU
 
         menus = self._getAllPOSResults(route, params=params)
@@ -267,10 +255,14 @@ class RAPI(BasePOSAPI):
             params = {"establishment": self.establishmentId}
             route = f"{R_NEW_API_URL}{RApiVersion.v0}{RApiMethods.WEBORDERS_MENU}"
             headers = {
-                "Callback-Url": urllib.parse.urljoin(DOMAIN_URL, f"/r/menu/{operationReport.oid}"),
+                "Callback-Url": urllib.parse.urljoin(
+                    DOMAIN_URL, f"/r/menu/{operationReport.oid}"
+                ),
                 "Client-Id": clientId,
             }
-            response = self._callPOSAPI(method=RequestType.GET, route=route, headers=headers, params=params)
+            response = self._callPOSAPI(
+                method=RequestType.GET, route=route, headers=headers, params=params
+            )
             correlationId: str = response.headers.get("Correlation-Id")
             reportProperties: Dict = {
                 "forceUpdate": syncSettings.forceUpdate,
@@ -283,7 +275,9 @@ class RAPI(BasePOSAPI):
             callback = True
         else:
             if self.customMenuUri:
-                self.logger.info(f"Start Product sync for Custom Menu: {self.customMenuUri}")
+                self.logger.info(
+                    f"Start Product sync for Custom Menu: {self.customMenuUri}"
+                )
                 products = self._getPOSProductsWithCategoryCustomMenu()
             else:
                 self.logger.info(f"Start Product sync for {self.channelLink}")
@@ -314,7 +308,9 @@ class RAPI(BasePOSAPI):
             self.logger.info(f"Got {len(productAttributes)} R Product Attributes")
 
             productAttributeValues = self._getProductAttrValues()
-            self.logger.info(f"Got {len(productAttributeValues)} R Product Attribute Values")
+            self.logger.info(
+                f"Got {len(productAttributeValues)} R Product Attribute Values"
+            )
 
             products, productCategories = self.parser.parseProducts(
                 products,
@@ -365,7 +361,11 @@ class RAPI(BasePOSAPI):
         Gets R product from Custom menu
         :return
         """
-        params = {"expand": "category", "active": True, "establishment": self.establishmentId}
+        params = {
+            "expand": "category",
+            "active": True,
+            "establishment": self.establishmentId,
+        }
 
         response = self._callPOSAPI(method=RequestType.GET, route=route, params=params)
         rawCustomMenuProduct: Dict[str, Any] = response.json()
@@ -407,10 +407,14 @@ class RAPI(BasePOSAPI):
             rawRProducts.extend(self._getAllPOSResults(route, params))
 
         # load them in the model
-        rCustomMenuProducts: List = [RProduct.importDict(rProduct) for rProduct in rawRProducts]
+        rCustomMenuProducts: List = [
+            RProduct.importDict(rProduct) for rProduct in rawRProducts
+        ]
 
         if not rCustomMenuProducts:
-            raise InvalidPOSAPIResult(message=f"No products found for {rProductGroup.name}")
+            raise InvalidPOSAPIResult(
+                message=f"No products found for {rProductGroup.name}"
+            )
         return rCustomMenuProducts
 
     def _getPOSProductsWithCategory(self) -> List[RProduct]:
@@ -422,7 +426,11 @@ class RAPI(BasePOSAPI):
         """
         route: str = RApiMethods.PRODUCT
 
-        params = {"expand": "category", "active": True, "establishment": self.establishmentId}
+        params = {
+            "expand": "category",
+            "active": True,
+            "establishment": self.establishmentId,
+        }
 
         # get all product objects from R
         totalRProductResults = self._getAllPOSResults(route, params)
@@ -447,7 +455,8 @@ class RAPI(BasePOSAPI):
         totalRModifierResults = self._getAllPOSResults(route, params)
 
         rModifiers: List = [
-            RProductModifier.importDict(rModifier) for rModifier in totalRModifierResults
+            RProductModifier.importDict(rModifier)
+            for rModifier in totalRModifierResults
         ]
 
         return rModifiers
@@ -471,7 +480,8 @@ class RAPI(BasePOSAPI):
         totalRModifierResults = self._getAllPOSResults(route, params)
 
         rProductModifiers: List = [
-            RProductModifierInfo.importDict(rModifier) for rModifier in totalRModifierResults
+            RProductModifierInfo.importDict(rModifier)
+            for rModifier in totalRModifierResults
         ]
         return rProductModifiers
 
@@ -489,7 +499,8 @@ class RAPI(BasePOSAPI):
         totalRModifierGroupResults = self._getAllPOSResults(route, params)
 
         rModifierGroups: List = [
-            RProductModifierGroup.importDict(group) for group in totalRModifierGroupResults
+            RProductModifierGroup.importDict(group)
+            for group in totalRModifierGroupResults
         ]
 
         return rModifierGroups
@@ -505,7 +516,9 @@ class RAPI(BasePOSAPI):
 
         totalRDynamicCombosResults = self._getAllPOSResults(route, params)
 
-        rDynamicCombos = [RDynamicCombo.importDict(product) for product in totalRDynamicCombosResults]
+        rDynamicCombos = [
+            RDynamicCombo.importDict(product) for product in totalRDynamicCombosResults
+        ]
         return [combo for combo in rDynamicCombos if combo.active]
 
     def _getPOSPrevailingTax(self) -> RPrevailingTax:
@@ -515,22 +528,38 @@ class RAPI(BasePOSAPI):
         # we must filter by SystemSetting resource_uri ID, because it can be different from as establishment
 
         # get SystemSetting for establishment
-        params = {"establishment": self.establishmentId, "fields": "establishment"}  # limit the returned data
-        response = self._callPOSAPI(method=RequestType.GET, route=RApiMethods.SYSTEM_SETTING, params=params)
+        params = {
+            "establishment": self.establishmentId,
+            "fields": "establishment",
+        }  # limit the returned data
+        response = self._callPOSAPI(
+            method=RequestType.GET, route=RApiMethods.SYSTEM_SETTING, params=params
+        )
         if not response.ok or not response.json().get("objects"):
-            self.parser.report("ERROR", f"Failed to get system settings: {response.text}")
-            raise InvalidPOSAPIResult(f"Failed to load system settings for establishment {self.establishment}")
+            self.parser.report(
+                "ERROR", f"Failed to get system settings: {response.text}"
+            )
+            raise InvalidPOSAPIResult(
+                f"Failed to load system settings for establishment {self.establishment}"
+            )
         systemSettingResourceUri = response.json().get("objects")[0]["resource_uri"]
         # get the number in /resources/SystemSetting/1/
         systemSettingResourceId = int(systemSettingResourceUri.split("/")[-2])
 
         # get SystemSettingOption for this SystemSetting
         route: str = RApiMethods.SYSTEM_SETTING_OPTION
-        params = {"setting_name": R_PREVAILING_TAX_SETTING_NAME, "settings_parent": systemSettingResourceId}
+        params = {
+            "setting_name": R_PREVAILING_TAX_SETTING_NAME,
+            "settings_parent": systemSettingResourceId,
+        }
         rawResult = self._callPOSAPI(method=RequestType.GET, route=route, params=params)
         if not response.ok or not response.json().get("objects"):
-            self.parser.report("ERROR", f"Failed to get prevailing tax settings: {response.text}")
-            raise InvalidPOSAPIResult(f"Failed to load prevailing tax for establishment {self.establishment}")
+            self.parser.report(
+                "ERROR", f"Failed to get prevailing tax settings: {response.text}"
+            )
+            raise InvalidPOSAPIResult(
+                f"Failed to load prevailing tax for establishment {self.establishment}"
+            )
         rPrevailingTax = RPrevailingTax.importDict(rawResult.json().get("objects")[0])
 
         return rPrevailingTax
@@ -548,7 +577,9 @@ class RAPI(BasePOSAPI):
         # get all tax group objects from R
         totalRProductTaxGroupResults = self._getAllPOSResults(route, params)
 
-        rProductTaxGroups = [RProductTaxGroup.importDict(group) for group in totalRProductTaxGroupResults]
+        rProductTaxGroups = [
+            RProductTaxGroup.importDict(group) for group in totalRProductTaxGroupResults
+        ]
 
         return rProductTaxGroups
 
@@ -614,7 +645,9 @@ class RAPI(BasePOSAPI):
                 self.logger.info(nextPage)
                 offset = parse_qs(nextPage).get("offset")[0]
                 params["offset"] = offset
-                rawResult = self._callPOSAPI(method=RequestType.GET, route=route, params=params)
+                rawResult = self._callPOSAPI(
+                    method=RequestType.GET, route=route, params=params
+                )
                 rawResultJson = rawResult.json()
                 totalRObjectResults.extend(rawResultJson.get("objects"))
                 nextPage = rawResultJson.get("meta", {}).get("next", None)
@@ -656,18 +689,18 @@ class RAPI(BasePOSAPI):
                 result.credentialsResponse = "Credentials are valid"
                 result.connectionResponse = f"Successfully connected to {self.pos.name}"
             except InvalidPOSAPIResult:
-                result.sampleCallResponse = "Invalid POS API Result : Invalid credentials"
+                result.sampleCallResponse = (
+                    "Invalid POS API Result : Invalid credentials"
+                )
                 result.credentialsResponse = "Credentials are set, but are invalid"
-                result.connectionResponse = "Invalid POS API Result : Invalid credentials"
+                result.connectionResponse = (
+                    "Invalid POS API Result : Invalid credentials"
+                )
             # we have more errors in _callPOSAPI, but those are not going to raise because they are for
             # 201 http responses (no json inside the response)
         else:
             # Some connection settings are missing
-            result.sampleCallResponse = (
-                f"Could not call to {self.pos.name} because some credentials are missing or invalid"
-            )
+            result.sampleCallResponse = f"Could not call to {self.pos.name} because some credentials are missing or invalid"
             result.credentialsResponse = "Some credentials are missing or invalid"
-            result.connectionResponse = (
-                f"Could not connect to {self.pos.name} because some credentials are missing or invalid"
-            )
+            result.connectionResponse = f"Could not connect to {self.pos.name} because some credentials are missing or invalid"
         return result

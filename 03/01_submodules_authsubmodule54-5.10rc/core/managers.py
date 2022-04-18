@@ -1,29 +1,19 @@
 import re
-import psycopg2.extras
-import psycopg2.extras
 from contextlib import contextmanager
-from flask import request
-from flask import session
-from flask import _request_ctx_stack
-from flask import current_app
-from flask import has_request_context
-from psycopg2 import OperationalError
-from psycopg2 import pool
+from typing import AnyStr, Iterable, List, Optional
+
+import psycopg2.extras
+from flask import (_request_ctx_stack, current_app, has_request_context,
+                   request, session)
+from psycopg2 import OperationalError, pool
 from psycopg2.extensions import connection as connection_type
 from psycopg2.extensions import cursor as cursor_type
-from psycopg2.extras import RealDictCursor
-from psycopg2.extras import RealDictRow
-from psycopg2.pool import PoolError
-from psycopg2.pool import SimpleConnectionPool
-from typing import AnyStr
-from typing import Iterable
-from typing import List
-from typing import Optional
+from psycopg2.extras import RealDictCursor, RealDictRow
+from psycopg2.pool import PoolError, SimpleConnectionPool
 
 from .actor import Actor
 from .exceptions import DatabaseError
-from .mixins import AnonymousUserMixin
-from .mixins import UserMixin
+from .mixins import AnonymousUserMixin, UserMixin
 
 
 # TODO: choose between this variant or .utils :467 user_context_processor()
@@ -48,26 +38,26 @@ class UserManager(object):
 
     @staticmethod
     def _get_user():
-        if has_request_context() and not hasattr(_request_ctx_stack, 'user'):
+        if has_request_context() and not hasattr(_request_ctx_stack, "user"):
             current_app.user_manager.load_user()
 
-        user = getattr(_request_ctx_stack.top, 'user', None)
+        user = getattr(_request_ctx_stack.top, "user", None)
         if not user:
             return AnonymousUserMixin()
         return UserMixin(user)
 
     def load_user(self):
         session_token = None
-        if current_app.config.get('SESSION_STORAGE'):
-            if current_app.config.get('SESSION_STORAGE') == 'HEADERS':
-                session_token = request.headers.get('Session-Token', None)
-            elif current_app.config.get('SESSION_STORAGE') == 'SESSION':
-                session_token = session.get('session_token', None)
+        if current_app.config.get("SESSION_STORAGE"):
+            if current_app.config.get("SESSION_STORAGE") == "HEADERS":
+                session_token = request.headers.get("Session-Token", None)
+            elif current_app.config.get("SESSION_STORAGE") == "SESSION":
+                session_token = session.get("session_token", None)
         else:
-            if 'Session-Token' in request.headers or 'session_token' in session:
-                session_token = request.headers.get('Session-Token')
+            if "Session-Token" in request.headers or "session_token" in session:
+                session_token = request.headers.get("Session-Token")
                 if not session_token:
-                    session_token = session.get('session_token')
+                    session_token = session.get("session_token")
 
         if session_token:
             user = Actor.objects.get_by_session(session_token=session_token)
@@ -96,9 +86,16 @@ class DatabaseManager(object):
     Creates pool with connections (default 10), automatically closing connection, create new connection
     if pool is empty, base methods like execute, fetchone, fetchall.
     """
-    def __init__(self, database=None, dsn=None, min_connection: int = 1, max_connections: int = 10) -> None:
+
+    def __init__(
+        self,
+        database=None,
+        dsn=None,
+        min_connection: int = 1,
+        max_connections: int = 10,
+    ) -> None:
         if not database and not dsn:
-            raise DatabaseError('Database credentials or DSN is required')
+            raise DatabaseError("Database credentials or DSN is required")
 
         if database:
             self.validate_database_dict(database)
@@ -108,7 +105,9 @@ class DatabaseManager(object):
 
         self.DATABASE = database
         self.DSN = dsn
-        self.pool = self.create_pool(min_connection=min_connection, max_connections=max_connections)
+        self.pool = self.create_pool(
+            min_connection=min_connection, max_connections=max_connections
+        )
         self.connection = self.create_connection()
         self.cursor = None
 
@@ -118,46 +117,48 @@ class DatabaseManager(object):
     @staticmethod
     def validate_database_dict(database):
         if not database:
-            raise DatabaseError('Database credentials are required')
+            raise DatabaseError("Database credentials are required")
 
         if not isinstance(database, dict):
-            raise DatabaseError('Database credentials should be dictionary')
+            raise DatabaseError("Database credentials should be dictionary")
 
-        if not database.get('NAME', None):
-            raise DatabaseError('Database NAME is required param')
+        if not database.get("NAME", None):
+            raise DatabaseError("Database NAME is required param")
 
-        if not database.get('USER', None):
-            raise DatabaseError('Database USER is required param')
+        if not database.get("USER", None):
+            raise DatabaseError("Database USER is required param")
 
-        if not database.get('PASSWORD', None):
-            raise DatabaseError('Database PASSWORD is required param')
+        if not database.get("PASSWORD", None):
+            raise DatabaseError("Database PASSWORD is required param")
 
-        if not database.get('HOST', None):
-            raise DatabaseError('Database HOST is required param')
+        if not database.get("HOST", None):
+            raise DatabaseError("Database HOST is required param")
 
     @staticmethod
     def validate_database_dsn(dsn):
         engine, user, password, host, port, db_name = re.split(r"://|@|:|/", dsn)
         if not engine:
-            raise DatabaseError('There is no engine in dsn')
+            raise DatabaseError("There is no engine in dsn")
 
         if not user:
-            raise DatabaseError('There is no user in dsn')
+            raise DatabaseError("There is no user in dsn")
 
         if not password:
-            raise DatabaseError('There is no password in dsn')
+            raise DatabaseError("There is no password in dsn")
 
         if not host:
-            raise DatabaseError('There is no host in dsn')
+            raise DatabaseError("There is no host in dsn")
 
         if not port:
-            raise DatabaseError('There is no port in dsn')
+            raise DatabaseError("There is no port in dsn")
 
         if not db_name:
-            raise DatabaseError('There is no port in db_name')
+            raise DatabaseError("There is no port in db_name")
 
     @staticmethod
-    def _get_cursor(connection: connection_type, cursor_factory: cursor_type) -> cursor_type:
+    def _get_cursor(
+        connection: connection_type, cursor_factory: cursor_type
+    ) -> cursor_type:
         """
         Create cursor by connection
         :param connection: connection
@@ -173,7 +174,9 @@ class DatabaseManager(object):
         """
         self.pool.closeall()
 
-    def put_connection(self, connection: connection_type, key=None, close: bool = False) -> None:
+    def put_connection(
+        self, connection: connection_type, key=None, close: bool = False
+    ) -> None:
         """
         Replace connection in pool cache
         :param connection: connection
@@ -183,7 +186,7 @@ class DatabaseManager(object):
         try:
             self.pool.putconn(connection)
         except Exception as e:
-            print('Error put connection')
+            print("Error put connection")
             connection.close()
 
     def get_connection(self, autocommit: bool = True, key=None) -> connection_type:
@@ -207,17 +210,23 @@ class DatabaseManager(object):
 
             port = self.DATABASE.get("PORT") or "5432"
             self.DATABASE.update(PORT=port)
-            conn = psycopg2.connect("dbname={NAME} user={USER} password={PASSWORD} host={HOST} "
-                                    "port={PORT}".format(**self.DATABASE))
+            conn = psycopg2.connect(
+                "dbname={NAME} user={USER} password={PASSWORD} host={HOST} "
+                "port={PORT}".format(**self.DATABASE)
+            )
         elif self.DSN:
             conn = psycopg2.connect("{}".format(self.DSN))
         else:
-            raise DatabaseError('There is no any database credentials')
+            raise DatabaseError("There is no any database credentials")
 
         return conn
 
     @contextmanager
-    def get_cursor(self, cursor_factory: Optional[cursor_type] = RealDictCursor, autocommit: bool = True):
+    def get_cursor(
+        self,
+        cursor_factory: Optional[cursor_type] = RealDictCursor,
+        autocommit: bool = True,
+    ):
         try:
             connection = self.get_connection(autocommit=autocommit)
             cur = self._get_cursor(connection, cursor_factory=cursor_factory)
@@ -229,7 +238,11 @@ class DatabaseManager(object):
             self.put_connection(connection)
 
     @property
-    def cur(self, cursor_factory: Optional[cursor_type] = RealDictCursor, autocommit: bool = True) -> cursor_type:
+    def cur(
+        self,
+        cursor_factory: Optional[cursor_type] = RealDictCursor,
+        autocommit: bool = True,
+    ) -> cursor_type:
 
         try:
             connection = self.get_connection(autocommit=autocommit)
@@ -246,22 +259,29 @@ class DatabaseManager(object):
             cursor.close()
             self.put_connection(cursor.connection)
 
-    def create_pool(self, min_connection: int, max_connections: int) -> SimpleConnectionPool:
+    def create_pool(
+        self, min_connection: int, max_connections: int
+    ) -> SimpleConnectionPool:
         """
         Creates postgres connection pool
         """
         if self.DATABASE:
             port = self.DATABASE.get("PORT") or "5432"
-            con_pool = psycopg2.pool.SimpleConnectionPool(minconn=min_connection, maxconn=max_connections,
-                                                          user=self.DATABASE.get('USER'),
-                                                          password=self.DATABASE.get('PASSWORD'),
-                                                          host=self.DATABASE.get('HOST'), port=port,
-                                                          database=self.DATABASE.get('NAME'))
+            con_pool = psycopg2.pool.SimpleConnectionPool(
+                minconn=min_connection,
+                maxconn=max_connections,
+                user=self.DATABASE.get("USER"),
+                password=self.DATABASE.get("PASSWORD"),
+                host=self.DATABASE.get("HOST"),
+                port=port,
+                database=self.DATABASE.get("NAME"),
+            )
         elif self.DSN:
-            con_pool = psycopg2.pool.SimpleConnectionPool(minconn=min_connection, maxconn=max_connections,
-                                                          dsn=self.DSN)
+            con_pool = psycopg2.pool.SimpleConnectionPool(
+                minconn=min_connection, maxconn=max_connections, dsn=self.DSN
+            )
         else:
-            raise DatabaseError('There is no any database credentials')
+            raise DatabaseError("There is no any database credentials")
 
         return con_pool
 
@@ -285,7 +305,7 @@ class DatabaseManager(object):
 
         return result
 
-    def fetchone(self, query: AnyStr, values: Iterable = None)-> RealDictRow:
+    def fetchone(self, query: AnyStr, values: Iterable = None) -> RealDictRow:
         """
         Fetch one record matching query from db
         :param query: SQL query string

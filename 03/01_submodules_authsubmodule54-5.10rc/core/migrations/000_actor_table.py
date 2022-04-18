@@ -7,6 +7,7 @@ class Migration(base.BaseMigration):
     Trigger created for checking on INSERT or UPDATE if such public key already exists.
     Insert into database default group, and information about current service
     """
+
     table_name = "actor"
     forwards_query = f"""
 

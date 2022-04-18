@@ -5,6 +5,7 @@ class Migration(base.BaseMigration):
     """
     Create invite_link_temp table
     """
+
     table_name = "invite_link_temp"
 
     forwards_query = f"""

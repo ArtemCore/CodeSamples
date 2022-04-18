@@ -10,7 +10,7 @@ class Registration(Flow):
         self.data = {
             "email": self.register_data.get("email"),
             "password": self.register_data.get("password"),
-            "actor_type": self.register_data.get("actor_type")
+            "actor_type": self.register_data.get("actor_type"),
         }
 
     def registration(self):
@@ -20,16 +20,14 @@ class Registration(Flow):
         """
         self._post_reg()
 
-
     def run(self):
-        self.delete_test_user(self.register_data.get('email'))
+        self.delete_test_user(self.register_data.get("email"))
         self.registration()
 
 
 class ClassicAuthorization(Flow):
     def __init__(self):
         super().__init__()
-
 
     def authorization_flow(self):
         """
@@ -40,6 +38,7 @@ class ClassicAuthorization(Flow):
 
     def run(self):
         self.authorization_flow()
+
 
 class CreateActor(ClassicAuthorization):
     def __init__(self):
@@ -52,9 +51,11 @@ class CreateActor(ClassicAuthorization):
         @subm_flow POST /actor/ endpoint
         """
         self._post_create_actor()
+
     def run(self):
         # self._delete_created_actor()
         self.create_actor_flow()
+
 
 class CreateActorGroup(ClassicAuthorization):
     def __init__(self):
@@ -67,9 +68,11 @@ class CreateActorGroup(ClassicAuthorization):
         @subm_flow POST /actor/ endpoint
         """
         self._post_create_actor()
+
     def run(self):
         # self._delete_created_actor()
         self.create_actor_flow()
+
 
 class UpdateActor(CreateActor):
     def __init__(self):
@@ -83,9 +86,9 @@ class UpdateActor(CreateActor):
         """
         self._update_actor_data()
 
-
     def run(self):
         self.update_actor()
+
 
 class SetPermactionActor(CreateActor):
     def __init__(self):
@@ -99,9 +102,9 @@ class SetPermactionActor(CreateActor):
         """
         self._post_perm_actor()
 
-
     def run(self):
         self.post_set_permaction_actor()
+
 
 class DeletePermactionActor(CreateActor):
     def __init__(self):
@@ -115,9 +118,9 @@ class DeletePermactionActor(CreateActor):
         """
         self._delete_permactions_actor()
 
-
     def run(self):
         self.post_set_permaction_actor()
+
 
 class SetPermactionGroup(CreateActor):
     def __init__(self):
@@ -135,6 +138,7 @@ class SetPermactionGroup(CreateActor):
     def run(self):
         self.post_set_permaction_group()
 
+
 class DeletePermactionGroup(CreateActor):
     def __init__(self):
         super().__init__()
@@ -147,10 +151,8 @@ class DeletePermactionGroup(CreateActor):
         """
         self._delete_permaction_group()
 
-
     def run(self):
         self.post_set_permaction_actor()
-
 
 
 #
@@ -166,9 +168,9 @@ class DeleteActor(CreateActor):
         """
         self._delete_actor()
 
-
     def run(self):
         self.delete_actor()
+
 
 class SyncGetHash(ClassicAuthorization):
     def __init__(self):

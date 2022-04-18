@@ -1,5 +1,5 @@
-from abc import ABC, abstractmethod, abstractclassmethod
-from typing import List, Dict
+from abc import ABC, abstractclassmethod, abstractmethod
+from typing import Dict, List
 
 """
 Base class for actions. This class contains general function for some permissions.
@@ -9,7 +9,6 @@ All actions should be inherited from BaseAction class.
 
 
 class BasePermAction(ABC):
-
     @classmethod
     def collect_all_perms(cls) -> Dict:
         """
@@ -17,13 +16,13 @@ class BasePermAction(ABC):
         """
 
         result = {
-            'perm_type': cls.permaction_type(),
-            'value': cls.default_value(),
-            'permaction_uuid': cls.permaction_uuid(),
-            'description': cls.description(),
-            'title': cls.title(),
-            'unions': cls.unions(),
-            'params': cls.params()
+            "perm_type": cls.permaction_type(),
+            "value": cls.default_value(),
+            "permaction_uuid": cls.permaction_uuid(),
+            "description": cls.description(),
+            "title": cls.title(),
+            "unions": cls.unions(),
+            "params": cls.params(),
         }
         return result
 

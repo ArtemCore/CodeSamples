@@ -1,8 +1,7 @@
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, Field
-
 from POSSystems.BasePOS.POSModel import POSModel, posfield, posmodel
+from pydantic import BaseModel, Field
 
 
 @posmodel
@@ -114,13 +113,17 @@ class RCustomMenu(POSModel):
     id: int = posfield(property="id", required=True, importFunc=lambda x: str(x))
     active: bool = posfield(property="active")
     resourceUri: str = posfield(property="resource_uri")
-    productGroupUri: str = posfield(property="product_group", importFunc=lambda x: x.get("resource_uri"))
+    productGroupUri: str = posfield(
+        property="product_group", importFunc=lambda x: x.get("resource_uri")
+    )
 
 
 @posmodel
 class RUpsellComboDetail(POSModel):
     upsellCombo: str = posfield(property="upsell_combo")
-    upsellComboPrice: float = posfield(property="upsell_combo_price", importFunc=lambda x: float(x), default=0.0)
+    upsellComboPrice: float = posfield(
+        property="upsell_combo_price", importFunc=lambda x: float(x), default=0.0
+    )
     sorting: int = posfield(property="sorting")
 
 
@@ -141,8 +144,12 @@ class RProduct(POSModel):
     dynamicCombo: str = posfield(property="dynamic_combo")
     productGroup: List[str] = posfield(property="product_group")
     tax: RProductTax = posfield(property="tax")
-    combo_upcharge: float = posfield(property="combo_upcharge", importFunc=lambda x: float(x), default=0.0)
-    upsell_combo_price: float = posfield(property="upsell_combo_price", importFunc=lambda x: float(x), default=0.0)
+    combo_upcharge: float = posfield(
+        property="combo_upcharge", importFunc=lambda x: float(x), default=0.0
+    )
+    upsell_combo_price: float = posfield(
+        property="upsell_combo_price", importFunc=lambda x: float(x), default=0.0
+    )
     sold_by_weight: bool = posfield(property="sold_by_weight")
     attribute_type: str = posfield(property="attribute_type")
     attribute_parent: str = posfield(property="attribute_parent")
@@ -152,7 +159,9 @@ class RProduct(POSModel):
     attributeValue2: str = posfield(property="attribute_value_2")
     # product sets list in combo product
     comboProductSets: List[RProductProductSet] = posfield(property="combo_productsets")
-    upsellCombos: List[RUpsellComboDetail] = posfield(property="upsell_combos", default_factory=list)
+    upsellCombos: List[RUpsellComboDetail] = posfield(
+        property="upsell_combos", default_factory=list
+    )
 
 
 @posmodel
@@ -207,7 +216,9 @@ class RProductModifierInfo(POSModel):
     modifier: RProductModifier = posfield(property="modifier")
     # resource uri of R Product
     product: str = posfield(property="product")
-    productModifierClass: RProductModifierModifierGroupInfo = posfield(property="product_modifier_class")
+    productModifierClass: RProductModifierModifierGroupInfo = posfield(
+        property="product_modifier_class"
+    )
     defaultModifierQuantity: int = posfield(property="default_modifier_qty")
 
 
@@ -440,7 +451,9 @@ class RSlot(POSModel):
 
     comboItemsSet: List[RComboItem] = posfield(property="combo_items")
     # TODO: add default logic later (auto select)
-    defaultProducts: List[str] = posfield(property="default_products", default_factory=list)
+    defaultProducts: List[str] = posfield(
+        property="default_products", default_factory=list
+    )
     defaultProduct: str = posfield(property="default_product")
 
 

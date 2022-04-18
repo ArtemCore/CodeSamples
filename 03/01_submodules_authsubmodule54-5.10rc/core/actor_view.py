@@ -3,39 +3,36 @@ Actor views for receiving information/changes from auth service and apply it on 
 could be used only if auth service sent this information.
 """
 from flask import current_app as app
-from flask import jsonify
-from flask import make_response
-from flask import request
-
+from flask import jsonify, make_response, request
 from flask.views import MethodView
 from flask_babel import gettext as _
 from flask_cors import cross_origin
 
-from .actions.actor_actions import CreateActorAction
-from .actions.actor_actions import UpdateActorAction
-from .actions.actor_actions import DeleteActorAction
-
-from .decorators import data_parsing
-from .decorators import service_only
+from .actions.actor_actions import (CreateActorAction, DeleteActorAction,
+                                    UpdateActorAction)
+from .decorators import data_parsing, service_only
 from .ecdsa_lib import verify_signature
-from .service_view import SendCallback
-from .utils import create_response_message
-from .utils import json_dumps
-from .service_view import GetActorByEmail
+from .service_view import GetActorByEmail, SendCallback
+from .utils import create_response_message, json_dumps
 
 
 class BaseActorView:
-
     @staticmethod
     def verify_request_data():
         data = request.json
         signature = data.pop("signature")
         if not data or not signature:
-            response = create_response_message(message=_("Invalid request data."), error=True)
+            response = create_response_message(
+                message=_("Invalid request data."), error=True
+            )
             return response, True
 
-        if not verify_signature(app.config['AUTH_PUB_KEY'], signature, json_dumps(data, sort_keys=True)):
-            response = create_response_message(message=_("Signature verification failed."), error=True)
+        if not verify_signature(
+            app.config["AUTH_PUB_KEY"], signature, json_dumps(data, sort_keys=True)
+        ):
+            response = create_response_message(
+                message=_("Signature verification failed."), error=True
+            )
             return response, True
 
         return data, False
@@ -59,7 +56,9 @@ class ActorView(MethodView, BaseActorView):
         actor = data.get("actor")
         if not error:
             response, status_code = CreateActorAction(actor).execute()
-            SendCallback(action_type='create_actor', data=self.get_callback_data(data)).send_callback()
+            SendCallback(
+                action_type="create_actor", data=self.get_callback_data(data)
+            ).send_callback()
         else:
             response = data
             status_code = 400
@@ -76,7 +75,9 @@ class ActorView(MethodView, BaseActorView):
         if not error:
             response, status_code = UpdateActorAction(data=data).execute()
 
-            SendCallback(action_type='update_actor', data=self.get_callback_data(data)).send_callback()
+            SendCallback(
+                action_type="update_actor", data=self.get_callback_data(data)
+            ).send_callback()
         else:
             response = data
             status_code = 400
@@ -92,17 +93,18 @@ class ActorView(MethodView, BaseActorView):
         data, error = self.verify_request_data()
         if not error:
             response, status_code = DeleteActorAction(data=data).execute()
-            SendCallback(action_type='delete_actor', data=self.get_callback_data(data)).send_callback()
+            SendCallback(
+                action_type="delete_actor", data=self.get_callback_data(data)
+            ).send_callback()
         else:
             response = data
             status_code = 400
         return make_response(jsonify(response), status_code)
 
-
     def get_callback_data(self, data):
         return {
-            'sync_package_id': data.get('sync_package_id'),
-            'object_uuid': data.get('object_uuid')
+            "sync_package_id": data.get("sync_package_id"),
+            "object_uuid": data.get("object_uuid"),
         }
 
 
@@ -110,6 +112,7 @@ class GetActorsViewByEmail(MethodView):
     """
     @POST Submodule Biom mode. Get actor by email@
     """
+
     @cross_origin()
     @data_parsing
     def post(self, data):
@@ -119,7 +122,7 @@ class GetActorsViewByEmail(MethodView):
 
         """
         data = GetActorByEmail(data.get("email")).execute()
-        result = {"error": True, "message":_("Such actor does not exist")}
+        result = {"error": True, "message": _("Such actor does not exist")}
         status_code = 400
         if data.json().get("actors"):
             action = CreateActorAction(data=data.json().get("actors")[0])

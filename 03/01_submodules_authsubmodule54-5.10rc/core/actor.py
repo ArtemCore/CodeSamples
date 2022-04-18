@@ -7,31 +7,26 @@ Actor.objects.get_by_session(session_token=session_token) - get by session token
 """
 
 import json
-
-import requests
 from datetime import datetime
-from flask import current_app as app
-from psycopg2 import sql
-from psycopg2.extras import RealDictRow
 from urllib.parse import urljoin
 
-from .utils import get_static_group
-from .utils import get_auth_domain
-from .utils import json_dumps
-from .utils import get_language_header
-from .utils import sign_data
-from .utils import verify_signature
-from .utils import create_response_message
+import requests
+from flask import current_app as app
 from flask_babel import gettext as _
+from psycopg2 import sql
+from psycopg2.extras import RealDictRow
+
+from .utils import (create_response_message, get_auth_domain,
+                    get_language_header, get_static_group, json_dumps,
+                    sign_data, verify_signature)
 
 
 class ActorNotFound(Exception):
-
     def __init__(self, *args, **kwargs):
         if args or kwargs:
             super().__init__(*args, *kwargs)
         else:
-            message = 'No actor with such parameters found'
+            message = "No actor with such parameters found"
             super().__init__(message)
 
 
@@ -40,18 +35,16 @@ class FieldError(Exception):
 
 
 class MultipleObjectsReturned(Exception):
-
     def __init__(self, *args, **kwargs):
         if args or kwargs:
             super().__init__(*args, *kwargs)
         else:
-            message = 'get() returned more than one object.'
+            message = "get() returned more than one object."
             super().__init__(message)
 
 
 # TODO: Move base manager out of actor.py
 class BaseManager:
-
     def __init__(self, table_name, *args, **kwargs):
         self.table_name = table_name
 
@@ -63,7 +56,7 @@ class BaseManager:
         if not args:
             query_string = "SELECT * FROM {} "
         else:
-            query_string = "SELECT " + ", ".join(['{}' for _ in args]) + "FROM {}"
+            query_string = "SELECT " + ", ".join(["{}" for _ in args]) + "FROM {}"
             appends_list += list(args)
         appends_list.append(sql.Identifier(self.table_name))
 
@@ -79,7 +72,7 @@ class BaseManager:
             values.update(value)
 
         else:
-            query_string = query_string.rstrip('AND ')
+            query_string = query_string.rstrip("AND ")
 
         query = sql.SQL(query_string).format(*appends_list)
 
@@ -106,9 +99,9 @@ class BaseManager:
             values.update(value)
 
         else:
-            query_string = query_string.rstrip('AND ')
+            query_string = query_string.rstrip("AND ")
 
-        query_string += ')'
+        query_string += ")"
 
         query = sql.SQL(query_string).format(*appends_list)
 
@@ -117,27 +110,38 @@ class BaseManager:
     @staticmethod
     def parse_keyword(attribute, value):
 
-        elements = attribute.split('__')
+        elements = attribute.split("__")
 
         if len(elements) == 1:
-            return '{}={}', [sql.Identifier(attribute), sql.Placeholder(attribute)], {attribute: value}
+            return (
+                "{}={}",
+                [sql.Identifier(attribute), sql.Placeholder(attribute)],
+                {attribute: value},
+            )
 
         elif len(elements) == 2:
 
-            if elements[1] == 'in':
+            if elements[1] == "in":
                 attribute = elements[0]
-                return '{} IN {}', [sql.Identifier(attribute), sql.Placeholder(attribute)], {attribute: tuple(value)}
+                return (
+                    "{} IN {}",
+                    [sql.Identifier(attribute), sql.Placeholder(attribute)],
+                    {attribute: tuple(value)},
+                )
 
-            elif elements[1] == 'contains':
-                value = '%' + value + '%'
+            elif elements[1] == "contains":
+                value = "%" + value + "%"
                 attribute = elements[0]
-                return '{} LIKE {}', [sql.Identifier(attribute), sql.Placeholder(attribute)], {attribute: value}
+                return (
+                    "{} LIKE {}",
+                    [sql.Identifier(attribute), sql.Placeholder(attribute)],
+                    {attribute: value},
+                )
 
-        raise FieldError('Unsupported lookup')
+        raise FieldError("Unsupported lookup")
 
 
 class ActorManager(BaseManager):
-
     def get(self, **kwargs):
         """
         Get Actors
@@ -146,7 +150,7 @@ class ActorManager(BaseManager):
         """
 
         if not kwargs:
-            raise ValueError('No filter parameters provided')
+            raise ValueError("No filter parameters provided")
 
         query, values = self.compile_query(**kwargs)
 
@@ -183,7 +187,7 @@ class ActorManager(BaseManager):
 
         with app.db.get_cursor() as cur:
             cur.execute(query, values)
-            exists = cur.fetchone().get('exists')
+            exists = cur.fetchone().get("exists")
 
         return exists
 
@@ -197,12 +201,15 @@ class ActorManager(BaseManager):
         """
 
         if not session_token:
-            raise ValueError('Invalid session_token')
+            raise ValueError("Invalid session_token")
 
         else:
             with app.db.get_cursor() as cur:
-                cur.execute("SELECT A.* FROM actor A INNER JOIN service_session_token S ON S.uuid = A.uuid "
-                            "WHERE S.session_token=%s", (session_token,))
+                cur.execute(
+                    "SELECT A.* FROM actor A INNER JOIN service_session_token S ON S.uuid = A.uuid "
+                    "WHERE S.session_token=%s",
+                    (session_token,),
+                )
                 actor = cur.fetchone()
 
                 if not actor:
@@ -214,35 +221,45 @@ class ActorManager(BaseManager):
 
 class Actor:
 
-    objects = ActorManager(table_name='actor')
+    objects = ActorManager(table_name="actor")
 
     def __init__(self, actor: RealDictRow):
-        self.uuid = actor.get('uuid')
-        self.actor_type = actor.get('actor_type')
-        self.created = actor.get('created')
-        self.initial_key = actor.get('initial_key')
-        self.root_perms_signature = actor.get('root_perms_signature')
-        self.secondary_keys = actor.get('secondary_keys')
-        self.uinfo = actor.get('uinfo')
+        self.uuid = actor.get("uuid")
+        self.actor_type = actor.get("actor_type")
+        self.created = actor.get("created")
+        self.initial_key = actor.get("initial_key")
+        self.root_perms_signature = actor.get("root_perms_signature")
+        self.secondary_keys = actor.get("secondary_keys")
+        self.uinfo = actor.get("uinfo")
         self.root = self.is_root
 
     def __str__(self):
-        return f'Actor of type {self.actor_type}'
+        return f"Actor of type {self.actor_type}"
 
     def __repr__(self):
-        return '<%s: %s>' % (self.__class__.__name__, self)
+        return "<%s: %s>" % (self.__class__.__name__, self)
 
     def to_dict(self):
-        return json.loads(json.dumps(self, default=lambda o: datetime.strftime(o, '%Y-%m-%d %H:%M:%S')
-        if isinstance(o, datetime) else o.__dict__))
+        return json.loads(
+            json.dumps(
+                self,
+                default=lambda o: datetime.strftime(o, "%Y-%m-%d %H:%M:%S")
+                if isinstance(o, datetime)
+                else o.__dict__,
+            )
+        )
 
     def get_public_keys(self):
         """
         Get user ecdsa keys
         :return: initial ecdsa key, secondary ecdsa key
         """
-        initial_key = self.initial_key.get('user_pub_key')
-        secondary_keys = [key for key in self.secondary_keys.values()] if self.secondary_keys else list()
+        initial_key = self.initial_key.get("user_pub_key")
+        secondary_keys = (
+            [key for key in self.secondary_keys.values()]
+            if self.secondary_keys
+            else list()
+        )
 
         return initial_key, secondary_keys
 
@@ -251,21 +268,23 @@ class Actor:
         Send POST request on auth for getting apt54
         :return: apt54
         """
-        url = urljoin(get_auth_domain(), '/get_apt54/')
+        url = urljoin(get_auth_domain(), "/get_apt54/")
 
         data = dict()
-        data['uuid'] = self.uuid
-        data['service_uuid'] = app.config['SERVICE_UUID']
-        data['signature'] = sign_data(app.config['SERVICE_PRIVATE_KEY'], json_dumps(data, sort_keys=True))
+        data["uuid"] = self.uuid
+        data["service_uuid"] = app.config["SERVICE_UUID"]
+        data["signature"] = sign_data(
+            app.config["SERVICE_PRIVATE_KEY"], json_dumps(data, sort_keys=True)
+        )
 
         response = requests.post(url, json=data, headers=get_language_header())
 
         if response.ok:
             data = json.loads(response.content)
-            signature = data.get('signature')
-            user_data = str(data.get('user_data')) + str(data.get('expiration'))
+            signature = data.get("signature")
+            user_data = str(data.get("user_data")) + str(data.get("expiration"))
 
-            if verify_signature(app.config['AUTH_PUB_KEY'], signature, user_data):
+            if verify_signature(app.config["AUTH_PUB_KEY"], signature, user_data):
                 return data
 
         return None
@@ -275,8 +294,8 @@ class Actor:
         Get list of actor groups
         :return: list of groups
         """
-        if self.actor_type in ('user', 'classic_user'):
-            groups = self.uinfo.get('groups') if self.uinfo.get('groups') else []
+        if self.actor_type in ("user", "classic_user"):
+            groups = self.uinfo.get("groups") if self.uinfo.get("groups") else []
             list_of_groups = [self.objects.get(uuid=group) for group in groups]
             return list_of_groups
         return []
@@ -286,7 +305,7 @@ class Actor:
         Get list of group members
         :return: list of actors
         """
-        if self.actor_type == 'group':
+        if self.actor_type == "group":
             query = """SELECT uuid, uinfo FROM actor WHERE %s in (SELECT jsonb_array_elements_text(uinfo->'groups'))"""
             values = [self.uuid]
             with app.db.get_cursor() as cur:
@@ -305,13 +324,19 @@ class Actor:
         if not self.root_perms_signature or not self.initial_key:
             return False
 
-        if app.config.get('AUTH_STANDALONE'):
-            if not verify_signature(app.config['SERVICE_PUBLIC_KEY'], self.root_perms_signature,
-                                    self.uuid + self.initial_key):
+        if app.config.get("AUTH_STANDALONE"):
+            if not verify_signature(
+                app.config["SERVICE_PUBLIC_KEY"],
+                self.root_perms_signature,
+                self.uuid + self.initial_key,
+            ):
                 return False
         else:
-            if not verify_signature(app.config['AUTH_PUB_KEY'], self.root_perms_signature,
-                                    self.uuid + self.initial_key):
+            if not verify_signature(
+                app.config["AUTH_PUB_KEY"],
+                self.root_perms_signature,
+                self.uuid + self.initial_key,
+            ):
                 return False
 
         return True
@@ -322,30 +347,30 @@ class Actor:
         Check if user in BAN group
         :return: True if in BAN, False if not
         """
-        ban_group_uuid = get_static_group('BAN')
+        ban_group_uuid = get_static_group("BAN")
         if not ban_group_uuid:
             # If someone delete BAN group so everyone in BAN
             # TODO: uncomment return True if need upper solution
             # return True
             return False
 
-        ban_group_uuid = ban_group_uuid.get('uuid')
-        if self.uinfo.get('groups'):
-            if ban_group_uuid in self.uinfo.get('groups'):
+        ban_group_uuid = ban_group_uuid.get("uuid")
+        if self.uinfo.get("groups"):
+            if ban_group_uuid in self.uinfo.get("groups"):
                 return True
 
         return False
 
     @property
     def is_admin(self):
-        admin_group_uuid = get_static_group('ADMIN')
+        admin_group_uuid = get_static_group("ADMIN")
         if not admin_group_uuid:
             # If someone delete ADMIN group so there is no admins
             return False
 
-        admin_group_uuid = admin_group_uuid.get('uuid')
-        if self.uinfo.get('groups'):
-            if admin_group_uuid in self.uinfo.get('groups'):
+        admin_group_uuid = admin_group_uuid.get("uuid")
+        if self.uinfo.get("groups"):
+            if admin_group_uuid in self.uinfo.get("groups"):
                 return True
 
         return False
@@ -355,9 +380,13 @@ class Actor:
         All permissions assigned to actor and his groups
         :return: dict with permissions
         """
-        query = """SELECT standalone_collect_full_list_of_default_actor_groups_perms(%s);"""
+        query = (
+            """SELECT standalone_collect_full_list_of_default_actor_groups_perms(%s);"""
+        )
         permissions = app.db.fetchall(query, [self.uuid])
-        return permissions[0].get('standalone_collect_full_list_of_default_actor_groups_perms')
+        return permissions[0].get(
+            "standalone_collect_full_list_of_default_actor_groups_perms"
+        )
 
     def update_permission(self, perms: list):
         """
@@ -368,20 +397,21 @@ class Actor:
         query = """WITH perms(data) AS (select json_array_elements(%s)) UPDATE permissions SET perm_value = (SELECT
                    data->>'value' FROM perms WHERE data->>'uuid' = uuid::text)::smallint WHERE actor_id=%s AND 
                    uuid IN %s"""
-        perms_uuids = [perm['uuid'] for perm in perms]
+        perms_uuids = [perm["uuid"] for perm in perms]
         values = [json_dumps(perms), self.uuid, tuple(perms_uuids)]
         with app.db.get_cursor() as cur:
             cur.execute(query, values)
-        response = create_response_message(message=_("Permission successfully updated."))
+        response = create_response_message(
+            message=_("Permission successfully updated.")
+        )
         return response, 200
 
 
 class PermissionManager(BaseManager):
-
     def get(self, **kwargs):
 
         if not kwargs:
-            raise ValueError('No filter parameters provided')
+            raise ValueError("No filter parameters provided")
 
         query, values = self.compile_query(**kwargs)
 
@@ -415,22 +445,22 @@ class PermissionManager(BaseManager):
 
 class Permission:
 
-    objects = PermissionManager(table_name='permissions')
+    objects = PermissionManager(table_name="permissions")
 
     def __init__(self, permission: RealDictRow):
-        self.uuid = permission.get('uuid')
-        self.created = permission.get('created')
-        self.service_id = permission.get('service_id')
-        self.perm_id = permission.get('perm_id')
-        self.actor_id = permission.get('actor_id')
-        self.perm_value = permission.get('perm_value')
-        self.default_value = permission.get('default_value')
-        self.perm_type = permission.get('perm_type')
-        self.action_id = permission.get('action_id')
-        self.description = permission.get('description')
+        self.uuid = permission.get("uuid")
+        self.created = permission.get("created")
+        self.service_id = permission.get("service_id")
+        self.perm_id = permission.get("perm_id")
+        self.actor_id = permission.get("actor_id")
+        self.perm_value = permission.get("perm_value")
+        self.default_value = permission.get("default_value")
+        self.perm_type = permission.get("perm_type")
+        self.action_id = permission.get("action_id")
+        self.description = permission.get("description")
 
     def __str__(self):
-        return f'{self.description.strip()}'
+        return f"{self.description.strip()}"
 
     def __repr__(self):
-        return '<%s: %s>' % (self.__class__.__name__, self)
+        return "<%s: %s>" % (self.__class__.__name__, self)

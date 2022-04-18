@@ -5,6 +5,7 @@ class Migration(base.BaseMigration):
     """
     Create permissions table.
     """
+
     forwards_query = f"""
         CREATE OR REPLACE FUNCTION get_actor_groups(actor_uuid uuid) RETURNS SETOF uuid
         RETURNS NULL ON NULL INPUT

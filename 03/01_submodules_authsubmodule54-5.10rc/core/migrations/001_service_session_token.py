@@ -5,6 +5,7 @@ class Migration(base.BaseMigration):
     """
     Create service_session table.
     """
+
     table_name = "service_session_token"
     forwards_query = f"""
         CREATE TABLE {table_name} (

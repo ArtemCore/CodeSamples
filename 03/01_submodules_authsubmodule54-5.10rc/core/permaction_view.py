@@ -1,23 +1,22 @@
-from flask import jsonify, request
-from flask.views import MethodView
 from typing import List
 
-from flask_cors import cross_origin
-from .decorators import data_parsing, service_only
-from .utils import insert_or_update_group_permaction
-from .utils import insert_or_update_actor_permaction
-from .ecdsa_lib import verify_signature
 from flask import current_app as app
-from .utils import json_dumps
+from flask import jsonify, make_response, request
+from flask.views import MethodView
 from flask_babel import gettext as _
-from flask import make_response
+from flask_cors import cross_origin
+
+from .decorators import data_parsing, service_only
+from .ecdsa_lib import verify_signature
 from .service_view import SendCallback
+from .utils import (insert_or_update_actor_permaction,
+                    insert_or_update_group_permaction, json_dumps)
 
 
 def get_callback_data(data):
     return {
-        'sync_package_id': data.get('sync_package_id'),
-        'object_uuid': data.get('permactions')[0].get('actor_uuid')
+        "sync_package_id": data.get("sync_package_id"),
+        "object_uuid": data.get("permactions")[0].get("actor_uuid"),
     }
 
 
@@ -26,6 +25,7 @@ class ActorPermactionView(MethodView):
     @POST Update permactions for user @
     @DELETE Delete permactions for user@
     """
+
     @service_only
     @cross_origin()
     @data_parsing
@@ -35,19 +35,19 @@ class ActorPermactionView(MethodView):
         @subm_flow Update permactions for user
         """
 
-        response = dict(
-            message=_("Permactions update failed.")
-        )
+        response = dict(message=_("Permactions update failed."))
         status_code = 400
         if data and verify_signature(
-            app.config['AUTH_PUB_KEY'],
+            app.config["AUTH_PUB_KEY"],
             data.pop("signature"),
-            json_dumps(data, sort_keys=True)
+            json_dumps(data, sort_keys=True),
         ):
             insert_or_update_actor_permaction(data.get("permactions"))
             status_code = 200
-            response["message"] = ("Permactions successfully updated.")
-            SendCallback(action_type='create_actor_permaction', data=get_callback_data(data)).send_callback()
+            response["message"] = "Permactions successfully updated."
+            SendCallback(
+                action_type="create_actor_permaction", data=get_callback_data(data)
+            ).send_callback()
         return make_response(jsonify(response), status_code)
 
     @service_only
@@ -58,14 +58,12 @@ class ActorPermactionView(MethodView):
         Delete permactions for user
         @subm_flow Delete permactions for user
         """
-        response = dict(
-            message=_("Permactions update failed.")
-        )
+        response = dict(message=_("Permactions update failed."))
         status_code = 400
         if data and verify_signature(
-            app.config['AUTH_PUB_KEY'],
+            app.config["AUTH_PUB_KEY"],
             data.pop("signature"),
-            json_dumps(data, sort_keys=True)
+            json_dumps(data, sort_keys=True),
         ):
             order = ["permaction_uuid", "actor_uuid", "service_uuid"]
             query, values = self.delete_permactions(
@@ -73,8 +71,10 @@ class ActorPermactionView(MethodView):
             )
             app.db.execute(query, tuple(values))
             status_code = 200
-            response["message"] = ("Permactions successfully updated.")
-            SendCallback(action_type='delete_actor_permaction', data=get_callback_data(data)).send_callback()
+            response["message"] = "Permactions successfully updated."
+            SendCallback(
+                action_type="delete_actor_permaction", data=get_callback_data(data)
+            ).send_callback()
         return make_response(jsonify(response), status_code)
 
     @staticmethod
@@ -88,11 +88,13 @@ class ActorPermactionView(MethodView):
         query += " OR ".join(parts) + ";"
         return query, values
 
+
 class GroupPermactionView(MethodView):
     """
     @POST Update permactions for group @
     @DELETE Delete permactions for group@
     """
+
     @service_only
     @cross_origin()
     @data_parsing
@@ -101,20 +103,20 @@ class GroupPermactionView(MethodView):
         Update permactions for group
         @subm_flow Update permactions for group
         """
-        response = dict(
-            message=_("Permactions update failed.")
-        )
+        response = dict(message=_("Permactions update failed."))
         status_code = 400
 
         if data and verify_signature(
-            app.config['AUTH_PUB_KEY'],
+            app.config["AUTH_PUB_KEY"],
             data.pop("signature"),
-            json_dumps(data, sort_keys=True)
+            json_dumps(data, sort_keys=True),
         ):
             insert_or_update_group_permaction(data.get("permactions"))
             status_code = 200
-            response["message"] = ("Permactions successfully updated.")
-            SendCallback(action_type='create_group_permaction', data=get_callback_data(data)).send_callback()
+            response["message"] = "Permactions successfully updated."
+            SendCallback(
+                action_type="create_group_permaction", data=get_callback_data(data)
+            ).send_callback()
         return make_response(jsonify(response), status_code)
 
     @service_only
@@ -125,14 +127,12 @@ class GroupPermactionView(MethodView):
         Delete permactions for group
         @subm_flow Delete permactions for group
         """
-        response = dict(
-            message=_("Permactions update failed.")
-        )
+        response = dict(message=_("Permactions update failed."))
         status_code = 400
         if data and verify_signature(
-            app.config['AUTH_PUB_KEY'],
+            app.config["AUTH_PUB_KEY"],
             data.pop("signature"),
-            json_dumps(data, sort_keys=True)
+            json_dumps(data, sort_keys=True),
         ):
             order = ["permaction_uuid", "actor_uuid", "service_uuid"]
             query, values = self.delete_permactions(
@@ -140,8 +140,10 @@ class GroupPermactionView(MethodView):
             )
             app.db.execute(query, tuple(values))
             status_code = 200
-            response["message"] = ("Permactions successfully updated.")
-            SendCallback(action_type='delete_group_permaction', data=get_callback_data(data)).send_callback()
+            response["message"] = "Permactions successfully updated."
+            SendCallback(
+                action_type="delete_group_permaction", data=get_callback_data(data)
+            ).send_callback()
         return make_response(jsonify(response), status_code)
 
     @staticmethod
@@ -154,4 +156,3 @@ class GroupPermactionView(MethodView):
             values.extend([permaction.get(key) for key in order])
         query += " OR ".join(parts) + ";"
         return query, values
-

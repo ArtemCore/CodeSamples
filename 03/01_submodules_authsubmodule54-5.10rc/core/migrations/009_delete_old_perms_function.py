@@ -5,6 +5,7 @@ class Migration(base.BaseMigration):
     """
     Delete old permissions from table table.
     """
+
     forwards_query = f"""
     DROP FUNCTION IF EXISTS get_old_perms;
     DROP FUNCTION IF EXISTS get_new_perms;

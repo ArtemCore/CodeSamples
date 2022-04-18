@@ -1,4 +1,5 @@
 from typing import Callable, Dict, List
+
 from flask import current_app as app
 from werkzeug.exceptions import Unauthorized
 
@@ -6,12 +7,9 @@ from .base import BasePerms
 
 
 class BiomLevelPermactionChain(BasePerms):
-
     def __init__(self, service_uuid, user, permaction_uuid, source_class):
         super().__init__(
-            user=user,
-            permaction_uuid=permaction_uuid,
-            source_class=source_class
+            user=user, permaction_uuid=permaction_uuid, source_class=source_class
         )
         self.service_uuid = service_uuid
         self.type_switch = {
@@ -20,8 +18,7 @@ class BiomLevelPermactionChain(BasePerms):
         }
 
     def check(self):
-        return self.status_check() if self.status_check()\
-            else self.check_permissions()
+        return self.status_check() if self.status_check() else self.check_permissions()
 
     def status_check(self):
         result = False
@@ -31,7 +28,7 @@ class BiomLevelPermactionChain(BasePerms):
         elif self.user.is_banned:
             raise Unauthorized
         elif self.user.is_admin:
-            result =  True
+            result = True
 
         return result
 
@@ -48,7 +45,8 @@ class BiomLevelPermactionChain(BasePerms):
     def get_permactions(self) -> Dict:
         # Get actor special permissions
 
-        result = app.db.fetchone("""
+        result = app.db.fetchone(
+            """
             SELECT APA.params as params,
                 APA.value as value, perm_type as perm_type
             FROM actor_permaction AS APA
@@ -57,11 +55,14 @@ class BiomLevelPermactionChain(BasePerms):
             WHERE actor_uuid=%s
                 AND APA.service_uuid=%s
                 AND APA.permaction_uuid=%s;
-        """, (self.user.uuid, self.service_uuid, self.permaction_uuid))
+        """,
+            (self.user.uuid, self.service_uuid, self.permaction_uuid),
+        )
 
         if not result:
             # Get group permission by weight
-            result = app.db.fetchone("""
+            result = app.db.fetchone(
+                """
                 SELECT GPA.params as params, GPA.value as value,
                     perm_type as perm_type
                 FROM group_permaction AS GPA
@@ -72,28 +73,33 @@ class BiomLevelPermactionChain(BasePerms):
                     AND GPA.actor_uuid = ANY(%s::uuid[])
                 ORDER BY weight DESC
                 LIMIT 1;
-            """, (
-                self.service_uuid,
-                self.permaction_uuid,
-                self.user.uinfo.get("groups")
-                )
+            """,
+                (
+                    self.service_uuid,
+                    self.permaction_uuid,
+                    self.user.uinfo.get("groups"),
+                ),
             )
 
         if not result:
             # Get default permission with default value and params
-            result = app.db.fetchone("""
+            result = app.db.fetchone(
+                """
                 SELECT params as params, value as value,
                     perm_type as perm_type
                 FROM default_permaction
                 WHERE service_uuid=%s
                     AND permaction_uuid=%s
-            """, (self.service_uuid, self.permaction_uuid))
+            """,
+                (self.service_uuid, self.permaction_uuid),
+            )
 
         return result
 
     def handle_check_permactions(self, permission) -> bool:
         result = False
-        if (not permission.get("params")
+        if (
+            not permission.get("params")
             or permission.get("params", {}).get("status", 1) == 0
         ):
             result = True if permission.get("value") else False

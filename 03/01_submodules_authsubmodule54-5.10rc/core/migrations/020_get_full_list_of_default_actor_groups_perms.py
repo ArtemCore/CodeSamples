@@ -5,6 +5,7 @@ class Migration(base.BaseMigration):
     """
     Create functions which collects all default permissions, actor permissions, group permissions for standalone mode
     """
+
     forwards_query = """
         DROP FUNCTION IF EXISTS standalone_collect_full_list_of_actor_perms CASCADE;
         

@@ -6,6 +6,7 @@ class Migration(base.BaseMigration):
     Create function with trigger on update and insert for adding default created timestamp in UTC.
     Need if we are using jsonb_populate_record and jsonb_populate_recordset setting null on created.
     """
+
     forwards_query = f"""
         CREATE OR REPLACE FUNCTION set_default_created()
         RETURNS trigger AS

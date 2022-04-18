@@ -1,18 +1,22 @@
-from flask import Blueprint
-from flask import request
+from flask import Blueprint, request
 
 from .decorators import data_parsing
 from .utils import delete_salt
 
 # Base auth_perms blueprint
-auth_submodule = Blueprint(name="auth_submodule", import_name=__name__, template_folder='templates',
-                           static_url_path='/auth_perms/core/static', static_folder='static')
+auth_submodule = Blueprint(
+    name="auth_submodule",
+    import_name=__name__,
+    template_folder="templates",
+    static_url_path="/auth_perms/core/static",
+    static_folder="static",
+)
 
 
 # Urls on apps in google market and appstore
 ERP_APP_URL = dict(
-    android='https://play.google.com/store/apps/details?id=ecosystem54.android',
-    ios='https://apps.apple.com/us/app/ecosystem54/id1496286184'
+    android="https://play.google.com/store/apps/details?id=ecosystem54.android",
+    ios="https://apps.apple.com/us/app/ecosystem54/id1496286184",
 )
 
 
@@ -20,27 +24,29 @@ ERP_APP_URL = dict(
 @data_parsing
 def after_request(response, **kwargs):
     # Delete salt that was used
-    if request.method == 'POST' and request.path == '/auth/' and response.status_code == 200:
-        data = kwargs.get('data')
-        if 'signed_salt' in data:
-            if 'uuid' in data:
-                salt = delete_salt({'uuid': data.get('uuid')})
-            elif 'qr_token' in data:
-                salt = delete_salt({'qr_token': data.get('qr_token')})
-            elif 'apt54' in data:
-                #salt = delete_salt({'uuid': data['apt54']['user_data'].get('uuid')})
+    if (
+        request.method == "POST"
+        and request.path == "/auth/"
+        and response.status_code == 200
+    ):
+        data = kwargs.get("data")
+        if "signed_salt" in data:
+            if "uuid" in data:
+                salt = delete_salt({"uuid": data.get("uuid")})
+            elif "qr_token" in data:
+                salt = delete_salt({"qr_token": data.get("qr_token")})
+            elif "apt54" in data:
+                # salt = delete_salt({'uuid': data['apt54']['user_data'].get('uuid')})
                 salt = None
                 pass
                 if not salt:
                     pass
-                    #salt = delete_salt({'pub_key': data['apt54']['user_data'].get('initial_key')})
+                    # salt = delete_salt({'pub_key': data['apt54']['user_data'].get('initial_key')})
             else:
                 # TODO: This print need to check event that do not exists here.
                 salt = None
 
             if not salt:
-                print('ERROR with deleting salt. Everything ok. data - %s' % data)
+                print("ERROR with deleting salt. Everything ok. data - %s" % data)
 
     return response
-
-

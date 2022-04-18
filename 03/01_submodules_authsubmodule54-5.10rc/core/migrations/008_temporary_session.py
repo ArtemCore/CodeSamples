@@ -5,6 +5,7 @@ class Migration(base.BaseMigration):
     """
     Create service_session table.
     """
+
     table_name = "temporary_session"
     forwards_query = f"""
         CREATE TABLE {table_name} (

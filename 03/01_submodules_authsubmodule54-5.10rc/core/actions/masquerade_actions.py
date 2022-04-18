@@ -1,19 +1,15 @@
-
-from flask import session
-from flask import current_app as app
-from psycopg2 import sql
 from typing import Dict, List
+
+from flask import current_app as app
+from flask import session
+from psycopg2 import sql
 
 from ..action import BasePermAction
 from ..decorators import perms_check
-from ..utils import get_apt54
-from ..utils import get_session_token
-from ..utils import create_session
-
+from ..utils import create_session, get_apt54, get_session_token
 
 
 class MasqueradePermAction(BasePermAction):
-    
     @classmethod
     def permaction_uuid(cls) -> str:
         return "43204251-47fe-46c5-8277-e2ddac0451c4"
@@ -47,27 +43,25 @@ class MasqueradePermAction(BasePermAction):
 
     @classmethod
     def unions(cls) -> List[str]:
-        return [
-            "masquerade"
-        ]
+        return ["masquerade"]
 
     @classmethod
     def params(cls) -> Dict:
-        return {
-            "masquerade": []
-        }
+        return {"masquerade": []}
 
     def __init__(self, masquerade_uuid: str):
         self.masquerade_uuid = masquerade_uuid
 
     @perms_check
     def execute(self):
-        apt54 = get_apt54(self.masquerade_uuid)[0]  # Change get_apt54_locally -> get_apt54
+        apt54 = get_apt54(self.masquerade_uuid)[
+            0
+        ]  # Change get_apt54_locally -> get_apt54
         primary_session = get_session_token()
         masquerade_session = create_session(apt54)
 
-        session['primary_session'] = primary_session
-        session['session_token'] = masquerade_session
+        session["primary_session"] = primary_session
+        session["session_token"] = masquerade_session
         return primary_session, masquerade_session
 
     def biom_perm(self, params: Dict):

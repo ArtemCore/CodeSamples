@@ -5,6 +5,7 @@ class Migration(base.BaseMigration):
     """
     Create salt_token table.
     """
+
     table_name = "salt_temp"
     forwards_query = f"""
         CREATE TABLE {table_name} (

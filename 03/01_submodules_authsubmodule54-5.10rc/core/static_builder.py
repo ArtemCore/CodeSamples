@@ -1,11 +1,11 @@
 from os import listdir
 from os.path import isfile, join
-from typing import List, Dict, Callable
+from typing import Callable, Dict, List
+
 from flask import url_for
 
 
-class StaticBuilder():
-
+class StaticBuilder:
     def __init__(
         self,
         js_folder_path: str = "",
@@ -36,10 +36,7 @@ class StaticBuilder():
         self._read_js_libraries()
         self._build_css()
         self._build_js()
-        return dict(
-            js=self.js_file,
-            css=self.css_file
-        )
+        return dict(js=self.js_file, css=self.css_file)
 
     def _build_js(self) -> None:
         self._initialize_fragments()
@@ -48,14 +45,12 @@ class StaticBuilder():
 
     def _initialize_fragments(self) -> None:
         parts = self._create_fragments(self.part_creators)
-        self.variables.update(
-            *self._create_fragments(self.variable_creators)
-        )
+        self.variables.update(*self._create_fragments(self.variable_creators))
         self._insert_variables()
         self._append_parts(parts)
 
     def _read_js_libraries(self) -> None:
-        with open(self.js_folder_path + 'auth.js', "r") as file:
+        with open(self.js_folder_path + "auth.js", "r") as file:
             self.js_file = file.read()
 
     def _read_js_file(self):
@@ -67,13 +62,9 @@ class StaticBuilder():
         self.css_file = str()
         for f in listdir(self.css_folder_path):
             if isfile(join(self.css_folder_path, f)):
-                self.css_file += """<link href="{}" rel="stylesheet">\n"""\
-                    .format(
-                        url_for(
-                            'auth_submodule.static',
-                            filename='css/' + f
-                        )
-                    )
+                self.css_file += """<link href="{}" rel="stylesheet">\n""".format(
+                    url_for("auth_submodule.static", filename="css/" + f)
+                )
 
     def _insert_variables(self) -> None:
         self.js_file = self.js_file % self.variables
@@ -84,18 +75,13 @@ class StaticBuilder():
 
     def _append_js_libraries(self) -> None:
         for lib in self.libs:
-            self.js_file = lib + '\n' + self.js_file
+            self.js_file = lib + "\n" + self.js_file
 
     def _create_fragments(self, creators: list = None) -> List[str]:
         fragments = list()
         for creator in creators:
-            fragments.append(
-                creator(
-                    **self.variables
-                )
-            )
+            fragments.append(creator(**self.variables))
         return fragments
 
     def _build_script(self) -> None:
-        self.js_file = """<script>{}</script>\n"""\
-            .format(self.js_file)
+        self.js_file = """<script>{}</script>\n""".format(self.js_file)

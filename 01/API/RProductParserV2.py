@@ -1,18 +1,13 @@
 from typing import Dict, List, Tuple
 
 from bson import ObjectId
-
 from Model.enums import Channel, ItemType
 from Model.product import Product, ProductCategory
 from POSSystems.BasePOS.POSParser import POSParser
-from POSSystems.R.RConstants import r_PRICE_DECIMALS, RProps
-from POSSystems.R.RModel import (
-    RWebMenu,
-    RWebMenuCategory,
-    RWebMenuProduct,
-    RWebMenuProductModifierClass,
-    RWebMenuProductModifierClassModifiers,
-)
+from POSSystems.R.RConstants import RProps, r_PRICE_DECIMALS
+from POSSystems.R.RModel import (RWebMenu, RWebMenuCategory, RWebMenuProduct,
+                                 RWebMenuProductModifierClass,
+                                 RWebMenuProductModifierClassModifiers)
 
 
 class RProductParserV2(POSParser):
@@ -26,7 +21,9 @@ class RProductParserV2(POSParser):
         self.modifierByPLU: Dict[str, Product] = {}
         self.overloadedProducts: List[Product] = []
 
-    def parseProductsToDc(self, rawMenu: Dict) -> Tuple[List[Product], List[ProductCategory]]:
+    def parseProductsToDc(
+        self, rawMenu: Dict
+    ) -> Tuple[List[Product], List[ProductCategory]]:
         rMenu: RWebMenu = RWebMenu.parse_obj(rawMenu)
         for rCategory in rMenu.categories:
             self.createCategory(rCategory)
@@ -51,7 +48,9 @@ class RProductParserV2(POSParser):
         product.categoryId = rProduct.id_category
         plu = rProduct.sku or rProduct.barcode
         if not plu:
-            self.logger.warning(f"{rProduct.name} does not have barcode or sku. Excluded from synchronization")
+            self.logger.warning(
+                f"{rProduct.name} does not have barcode or sku. Excluded from synchronization"
+            )
             return
         product.plu = plu
         product.name = rProduct.name
@@ -76,7 +75,9 @@ class RProductParserV2(POSParser):
         self.productsByPLU[product.plu] = product
 
     def createModGroup(self, rModGroup: RWebMenuProductModifierClass) -> Product:
-        if existingModGroup := self.modGroupByPLU.get(f"{rModGroup.modifier_class_id}-MG"):
+        if existingModGroup := self.modGroupByPLU.get(
+            f"{rModGroup.modifier_class_id}-MG"
+        ):
             if (
                 not existingModGroup.min == rModGroup.minimum_amount
                 or not existingModGroup.max == rModGroup.maximum_amount
@@ -100,9 +101,13 @@ class RProductParserV2(POSParser):
         self.modGroupByPLU[modifierGroup.plu] = modifierGroup
         return modifierGroup
 
-    def createModifier(self, rModifier: RWebMenuProductModifierClassModifiers) -> Product:
+    def createModifier(
+        self, rModifier: RWebMenuProductModifierClassModifiers
+    ) -> Product:
         if existingModifier := self.modifierByPLU.get(f"{rModifier.id}-M"):
-            if self.getPriceFromPos(existingModifier.price) != self.getPriceFromPos(rModifier.price):
+            if self.getPriceFromPos(existingModifier.price) != self.getPriceFromPos(
+                rModifier.price
+            ):
                 modifier = existingModifier.copy()
                 modifier._id = ObjectId()
                 modifier.price = self.getPriceFromPos(rModifier.price)

@@ -5,6 +5,7 @@ class Migration(base.BaseMigration):
     """
     Create permissions table.
     """
+
     forwards_query = f"""
 
         -- Getting list of permissions for an action
