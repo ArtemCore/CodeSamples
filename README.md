@@ -8,4 +8,4 @@ IMPORTANT NOTE:
   this is just small part of code from real project, and you can't setup/run locally, just an example showing different areas I'm worked with.
   More details in 01 Readme.
 - [02](02) This example is part from real project too. Here I just wanna share my realisation for bitcoin address generation based on `fastecdsa`. More details in 02 Readme.
-- [03](03) In this folder you can find protocol54 specification, where I took part as developer.
+- [03](03) In this folder you can find protocol54 specification and protocol itself, where I took part as developer.
